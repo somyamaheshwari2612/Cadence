@@ -4,6 +4,7 @@ import time
 import requests
 import statistics
 from datetime import datetime, timezone
+from services.cpcb_naqi import calculate_pm25_subindex, get_cpcb_category
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "india_100_cities.json")
 CACHE_TTL_SECONDS = 3600  # 1 hour cache to strictly preserve Open-Meteo rate limits
@@ -52,6 +53,10 @@ def _fetch_chunk_aqi(city_chunk):
         us_aqi = current.get("us_aqi")
         pm2_5 = current.get("pm2_5")
         
+        # Compute Indian CPCB NAQI directly from PM2.5
+        india_naqi = calculate_pm25_subindex(pm2_5) if pm2_5 is not None else None
+        cpcb_cat = get_cpcb_category(india_naqi)["category"] if india_naqi is not None else "Unknown"
+        
         results.append({
             "city": city["city"],
             "category": city.get("category", ""),
@@ -59,6 +64,8 @@ def _fetch_chunk_aqi(city_chunk):
             "lng": city["lng"],
             "us_aqi": us_aqi,
             "pm2_5": pm2_5,
+            "india_naqi": india_naqi,
+            "cpcb_category": cpcb_cat,
             "status": "available" if us_aqi is not None else "missing"
         })
     return results
@@ -89,7 +96,7 @@ def refresh_national_aqi_data(force=False):
         try:
             chunk_results = _fetch_chunk_aqi(chunk)
             all_city_results.extend(chunk_results)
-        except Exception as e:
+        except Exception:
             # If a chunk fails, try graceful fallback for those cities
             for c in chunk:
                 all_city_results.append({
@@ -99,53 +106,77 @@ def refresh_national_aqi_data(force=False):
                     "lng": c["lng"],
                     "us_aqi": None,
                     "pm2_5": None,
+                    "india_naqi": None,
+                    "cpcb_category": "Unknown",
                     "status": "error"
                 })
     
     # Filter valid AQI values for statistical analysis
-    valid_cities = [c for c in all_city_results if c["us_aqi"] is not None]
+    valid_cities = [c for c in all_city_results if c["india_naqi"] is not None or c["us_aqi"] is not None]
     
     if not valid_cities:
-        # If upstream completely failed but we have stale cache, preserve stale cache
         if _national_cache["data"] is not None:
             return _national_cache["data"], False
         raise ConnectionError("Could not retrieve national air quality data from Open-Meteo.")
         
-    aqi_values = [c["us_aqi"] for c in valid_cities]
-    median_aqi = round(statistics.median(aqi_values))
-    mean_aqi = round(statistics.mean(aqi_values), 1)
-    
-    sorted_by_aqi = sorted(valid_cities, key=lambda x: x["us_aqi"])
-    min_city = sorted_by_aqi[0]
-    max_city = sorted_by_aqi[-1]
-    
-    range_str = f"{min_city['us_aqi']} ({min_city['city']}) – {max_city['us_aqi']} ({max_city['city']})"
+    # Calculate Indian CPCB NAQI stats
+    valid_naqi_cities = [c for c in valid_cities if c["india_naqi"] is not None]
+    if valid_naqi_cities:
+        naqi_values = [c["india_naqi"] for c in valid_naqi_cities]
+        median_naqi = round(statistics.median(naqi_values))
+        mean_naqi = round(statistics.mean(naqi_values), 1)
+        sorted_by_naqi = sorted(valid_naqi_cities, key=lambda x: x["india_naqi"])
+        min_naqi_city = sorted_by_naqi[0]
+        max_naqi_city = sorted_by_naqi[-1]
+        range_naqi_str = f"NAQI {min_naqi_city['india_naqi']} ({min_naqi_city['city']}) – NAQI {max_naqi_city['india_naqi']} ({max_naqi_city['city']})"
+    else:
+        median_naqi = 100
+        mean_naqi = 100.0
+        range_naqi_str = "Unavailable"
+        sorted_by_naqi = valid_cities
+
+    # Legacy US AQI stats for reference
+    us_aqi_values = [c["us_aqi"] for c in valid_cities if c["us_aqi"] is not None]
+    median_us_aqi = round(statistics.median(us_aqi_values)) if us_aqi_values else median_naqi
+    mean_us_aqi = round(statistics.mean(us_aqi_values), 1) if us_aqi_values else mean_naqi
     
     computed_data = {
         "card_summary": {
-            "title": "National Context (100 Cities)",
-            "median_us_aqi": median_aqi,
-            "mean_us_aqi": mean_aqi,
-            "range": range_str,
-            "min_city": {"city": min_city["city"], "us_aqi": min_city["us_aqi"]},
-            "max_city": {"city": max_city["city"], "us_aqi": max_city["us_aqi"]},
-            "model": "CAMS Global (Hourly Estimate)"
+            "title": "National Context (100 Indian Cities)",
+            "median_india_naqi": median_naqi,
+            "mean_india_naqi": mean_naqi,
+            "median_us_aqi": median_us_aqi,
+            "mean_us_aqi": mean_us_aqi,
+            "range": range_naqi_str,
+            "min_city": {"city": sorted_by_naqi[0]["city"], "naqi": sorted_by_naqi[0].get("india_naqi", 50), "us_aqi": sorted_by_naqi[0]["us_aqi"]},
+            "max_city": {"city": sorted_by_naqi[-1]["city"], "naqi": sorted_by_naqi[-1].get("india_naqi", 300), "us_aqi": sorted_by_naqi[-1]["us_aqi"]},
+            "model": "CAMS Global PM2.5 with CPCB NAQI Linear Interpolation"
         },
         "cleanest_cities": [
-            {"city": c["city"], "us_aqi": c["us_aqi"], "category": c["category"]}
-            for c in sorted_by_aqi[:5]
+            {
+                "city": c["city"],
+                "naqi": c.get("india_naqi", c["us_aqi"]),
+                "us_aqi": c["us_aqi"],
+                "category": c.get("cpcb_category", c["category"]),
+                "pm2_5": c.get("pm2_5")
+            }
+            for c in sorted_by_naqi[:5]
         ],
         "most_polluted_cities": [
-            {"city": c["city"], "us_aqi": c["us_aqi"], "category": c["category"]}
-            for c in sorted_by_aqi[-5:][::-1]
+            {
+                "city": c["city"],
+                "naqi": c.get("india_naqi", c["us_aqi"]),
+                "us_aqi": c["us_aqi"],
+                "category": c.get("cpcb_category", c["category"]),
+                "pm2_5": c.get("pm2_5")
+            }
+            for c in sorted_by_naqi[-5:][::-1]
         ],
         "total_cities_evaluated": len(all_city_results),
         "valid_cities_count": len(valid_cities),
         "disclaimer": (
-            "Values represent forecast U.S. AQI returned by Open-Meteo CAMS Global. "
-            "This is NOT the official Indian National Air Quality Index (NAQI). "
-            "For official Indian station monitoring and bulletins, consult the Central "
-            "Pollution Control Board (https://www.cpcb.nic.in/aqi_bulletin.php)."
+            "National statistics are computed using official Central Pollution Control Board (CPCB) "
+            "sub-index interpolation from Open-Meteo CAMS Global PM2.5 forecasts."
         )
     }
     

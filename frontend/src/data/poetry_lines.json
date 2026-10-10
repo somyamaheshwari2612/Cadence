@@ -1,0 +1,593 @@
+{
+  "clear_sky": {
+    "day": [
+      "Nothing between you and the blue.\nBreathe a little deeper.",
+      "A sky without a single doubt.\nMake room for wonder.",
+      "Clear skies. Quiet thoughts.\nThe day is yours."
+    ],
+    "night": [
+      "A thousand lights above.\nAnd all the time in the world.",
+      "No clouds to hide the stars.\nSomewhere, the universe is saying hello.",
+      "The sky is wide awake.\nMaybe you can slow down now."
+    ],
+    "temperature_ranges": {
+      "hot": {
+        "day": [
+          "High blazing sun. Radiant heat.\nSeek shade during peak hours.",
+          "Golden light, rising temperatures.\nKeep cool and take it easy."
+        ],
+        "night": [
+          "The earth is still holding the heat.\nGive yourself time to cool down.",
+          "Warm memories. Cooler skies.\nSome days end just right."
+        ]
+      },
+      "cold": {
+        "day": [
+          "Cool air. Rosy mornings.\nWrap up and welcome the day.",
+          "Brisk cool winds. Chilly air.\nWrap up warm for time outside."
+        ],
+        "night": [
+          "Cold settles over the rooftops.\nFind your warmth and stay awhile.",
+          "The stars feel closer in the cold.\nKeep cosy beneath the quiet sky."
+        ]
+      },
+      "freezing": {
+        "day": [
+          "Frost on the rooftops. Pale blue skies.\nKeep warm and tread carefully.",
+          "A bright, biting kind of morning.\nLet warmth be your priority."
+        ],
+        "night": [
+          "Frost glimmers beneath the stars.\nStay warm through the longest hours.",
+          "The night is sharp with cold.\nFind shelter and let the world wait."
+        ]
+      }
+    }
+  },
+  "mainly_clear": {
+    "day": [
+      "Soft winds. Warm light.\nAnother beautiful day.",
+      "Golden hours. Open skies.\nThe world feels full of possibility.",
+      "Sun on your skin. A little peace.\nTake the long way home."
+    ],
+    "night": [
+      "The day leaves a little gold behind.\nLet the quiet find you.",
+      "Warm memories. Cooler skies.\nSome days end just right.",
+      "The sun has gone to rest.\nYour little corner of the universe is glowing."
+    ],
+    "temperature_ranges": {
+      "hot": {
+        "day": [
+          "Heat shimmers above the earth.\nLet the afternoon drift by gently.",
+          "The sun is generous today.\nFind shade, water, and a slower pace."
+        ],
+        "night": [
+          "The earth is still holding the heat.\nGive yourself time to cool down.",
+          "Warm air. Slow hours.\nLet the night bring some relief."
+        ]
+      },
+      "cold": {
+        "day": [
+          "Crisp air. A gentle sun.\nStep outside and feel refreshed.",
+          "Cool breeze under clear light.\nTake in the fresh air."
+        ],
+        "night": [
+          "A brisk clear night.\nThe stars burn crisp and bright.",
+          "Cool air under a velvet sky.\nRest easy tonight."
+        ]
+      },
+      "freezing": {
+        "day": [
+          "Pale sunlight across cold ground.\nBundle up before you head out.",
+          "Crisp winter morning.\nCarry warmth with you today."
+        ],
+        "night": [
+          "Sharp cold beneath the stars.\nStay safe and cosy inside.",
+          "Winter night, crystal clear.\nRest warm by the hearth."
+        ]
+      }
+    }
+  },
+  "partly_cloudy": {
+    "day": [
+      "Sunshine with a softer side.\nA little mystery in the blue.",
+      "Clouds drift. Light finds a way.\nLet the day unfold.",
+      "A little shade. A little gold.\nA lovely kind of in-between."
+    ],
+    "night": [
+      "Clouds wander past the moon.\nEven the night has its moods.",
+      "A little sky, a little mystery.\nNot everything needs to be clear.",
+      "The stars play hide and seek.\nLet the night keep a few secrets."
+    ],
+    "temperature_ranges": {
+      "hot": {
+        "day": [
+          "Passing clouds offer welcoming shade.\nTake a breather from the heat.",
+          "Filtered sunlight. Warm air.\nStay hydrated and pace yourself."
+        ],
+        "night": [
+          "Warm breeze through scattered clouds.\nLet the evening bring relief.",
+          "Balmy twilight.\nSlow down as the shadows grow."
+        ]
+      },
+      "cold": {
+        "day": [
+          "Chilly breeze beneath wandering clouds.\nKeep your layers close.",
+          "Soft winter light.\nEnjoy the quiet brisk morning."
+        ],
+        "night": [
+          "Cold clouds brushing the dark sky.\nBundle up and head inside.",
+          "Crisp nocturnal air.\nLet warmth welcome you home."
+        ]
+      },
+      "freezing": {
+        "day": [
+          "Frost-tipped clouds in pale skies.\nStay bundled against the bite.",
+          "Cold drafts between sunny spells.\nTake care on frosty walkways."
+        ],
+        "night": [
+          "Sub-zero stillness under drifting clouds.\nStay where the warmth is.",
+          "Icy breezes beneath the clouds.\nKeep cosy until the morning."
+        ]
+      }
+    }
+  },
+  "overcast": {
+    "day": [
+      "A sky full of silver.\nA day made for gentler things.",
+      "No sharp shadows. No rush.\nJust you and the passing hours.",
+      "The light is soft today.\nMaybe life can be, too."
+    ],
+    "night": [
+      "The sky wears its darkest silk.\nLet your thoughts grow quiet.",
+      "No stars in sight. Still, the universe remains.\nSo do you.",
+      "A ceiling of clouds. A world at rest.\nStay a little longer."
+    ],
+    "temperature_ranges": {
+      "cold": {
+        "day": [
+          "Cool grey skies. Calm and still.\nGentle coolness through the day.",
+          "Chilly cloudy horizon.\nWrap up for a quiet stroll."
+        ],
+        "night": [
+          "A quiet cold blanket over the city.\nRest easy in your warm space.",
+          "Muted dark skies, freezing chill.\nLet the stillness soothe you."
+        ]
+      },
+      "freezing": {
+        "day": [
+          "Heavy frost beneath a low grey ceiling.\nWinter holds the world still.",
+          "Freezing mist and grey skies.\nKeep warm indoors when you can."
+        ],
+        "night": [
+          "Bitter cold beneath cloud cover.\nLock in the warmth tonight.",
+          "Icy stillness in the dark.\nSleep peacefully until sunrise."
+        ]
+      }
+    }
+  },
+  "cloudy": {
+    "day": [
+      "A softer sky. A slower day.\nNothing wrong with taking it easy.",
+      "Grey above. Calm within.\nLet the world move without you.",
+      "The sun is taking the scenic route.\nThere's still beauty in the waiting.",
+      "A sky full of silver.\nA day made for gentler things.",
+      "No sharp shadows. No rush.\nJust you and the passing hours.",
+      "The light is soft today.\nMaybe life can be, too."
+    ],
+    "night": [
+      "Clouds draw the curtains on the stars.\nLet the silence settle in.",
+      "A velvet sky. A quieter world.\nTonight asks nothing of you.",
+      "The stars can wait until tomorrow.\nRest is its own kind of magic.",
+      "The sky wears its darkest silk.\nLet your thoughts grow quiet.",
+      "No stars in sight. Still, the universe remains.\nSo do you.",
+      "A ceiling of clouds. A world at rest.\nStay a little longer."
+    ],
+    "temperature_ranges": {
+      "cold": {
+        "day": [
+          "Cool grey skies. Calm and still.\nGentle coolness through the day.",
+          "Chilly cloudy horizon.\nWrap up for a quiet stroll."
+        ],
+        "night": [
+          "A quiet cold blanket over the city.\nRest easy in your warm space.",
+          "Muted dark skies, freezing chill.\nLet the stillness soothe you."
+        ]
+      },
+      "freezing": {
+        "day": [
+          "Heavy frost beneath a low grey ceiling.\nWinter holds the world still.",
+          "Freezing mist and grey skies.\nKeep warm indoors when you can."
+        ],
+        "night": [
+          "Bitter cold beneath cloud cover.\nLock in the warmth tonight.",
+          "Icy stillness in the dark.\nSleep peacefully until sunrise."
+        ]
+      }
+    }
+  },
+  "windy": {
+    "day": [
+      "Brisk mountain gales. Dancing winds.\nFeel the rhythm of the rushing air.",
+      "Soft winds. Restless leaves.\nLet something new find you.",
+      "The air has places to be.\nMaybe you do, too.",
+      "Hair undone. Thoughts untangled.\nA little wild looks good on you."
+    ],
+    "night": [
+      "The wind whispers through the dark.\nSomewhere, the world is dreaming.",
+      "Restless branches. Moonlit air.\nLet the night carry what you cannot.",
+      "The wind has stories to tell.\nListen between the quiet."
+    ],
+    "temperature_ranges": {
+      "cold": {
+        "day": [
+          "Brisk mountain gales. Dancing winds.\nFeel the rhythm of the rushing air.",
+          "Cold wind bites the morning air.\nZip up tight and keep moving."
+        ],
+        "night": [
+          "The wind slips through the dark.\nLayer up and stay sheltered.",
+          "A cold night with restless edges.\nFind warmth before the stars."
+        ]
+      }
+    }
+  },
+  "breezy": {
+    "day": [
+      "A gentle breeze. A wandering mind.\nStay curious.",
+      "The leaves are dancing again.\nTake that as your sign.",
+      "Fresh air. Light steps.\nThere's nowhere else you need to be."
+    ],
+    "night": [
+      "Cool air through an open window.\nThe nicest kind of company.",
+      "A breeze beneath the moon.\nLet the day slip away.",
+      "The curtains sway. The world slows.\nYou can exhale now."
+    ]
+  },
+  "rain": {
+    "day": [
+      "Fresh scent of rain. Gentle showers.\nQuiet rhythm of falling drops.",
+      "Rain on the windows. Peace in the pauses.\nLet the world wait.",
+      "Silver skies. Petrichor dreams.\nThe earth is beginning again.",
+      "A little rain, a little reset.\nSome things grow in the grey."
+    ],
+    "night": [
+      "Rain keeps the rhythm.\nLet your thoughts drift with it.",
+      "A dark sky. A warm room.\nThe world can wait until morning.",
+      "Raindrops trace the glass.\nTonight, even silence has a sound."
+    ]
+  },
+  "rain_showers": {
+    "day": [
+      "Passing showers wash the afternoon.\nCatch the petrichor in the air.",
+      "Brief downpours, bright horizon.\nNature refreshing itself.",
+      "Rain falls without hesitation.\nLet the world take its time."
+    ],
+    "night": [
+      "Sudden showers in the dark.\nListen to the rhythm from inside.",
+      "Rain drums against the darkness.\nKeep close to the warmth tonight."
+    ]
+  },
+  "drizzle": {
+    "day": [
+      "A whisper of rain. A breath of fresh air.\nThe little things are enough.",
+      "Tiny raindrops. Muted skies.\nA softer sort of magic.",
+      "The sky is speaking quietly today.\nLean in."
+    ],
+    "night": [
+      "A fine rain against the dark.\nLet the hours turn gentle.",
+      "Little drops. Long thoughts.\nSome nights are made for slowing down.",
+      "The window glistens in the dark.\nStay where the warmth is."
+    ]
+  },
+  "heavy_rain": {
+    "day": [
+      "The sky has something to say.\nFind a safe, sheltered place to listen.",
+      "Rain falls without hesitation.\nLet the world take its time.",
+      "A thousand drops, one restless sky.\nStay warm. Stay safe."
+    ],
+    "night": [
+      "Rain drums against the darkness.\nKeep close to the warmth tonight.",
+      "The storm is loud. Your shelter matters.\nLet the night pass safely.",
+      "Water rushes. Clouds gather.\nStay in, stay safe, let morning come."
+    ]
+  },
+  "thunderstorm": {
+    "day": [
+      "Distant rumbles. Electric skies.\nRest inside until the storm rolls by.",
+      "The sky is electric today.\nGive the storm its space.",
+      "Thunder rolls. The horizon glows.\nWatch from somewhere safe.",
+      "Wild skies. Restless clouds.\nSome wonders are best seen from indoors."
+    ],
+    "night": [
+      "Nighttime rumbles. Electric skies.\nRest inside until the storm rolls by.",
+      "Lightning writes across the dark.\nWatch only from somewhere safe.",
+      "Thunder beyond the window.\nLet your shelter be your little world.",
+      "The sky is roaring tonight.\nYou don't have to face the storm outside."
+    ]
+  },
+  "lightning": {
+    "day": [
+      "Light splits the restless sky.\nKeep your distance and stay safe.",
+      "A flash across the horizon.\nSome forces ask for space."
+    ],
+    "night": [
+      "The darkness flickers with distant light.\nStay sheltered until it passes.",
+      "Lightning illuminates the unseen.\nAdmire the sky from somewhere safe."
+    ]
+  },
+  "snow": {
+    "day": [
+      "Crisp alpine air. Drifting snow.\nQuiet peaks beneath the winter sky.",
+      "The world wears white today.\nEvery sound feels softer.",
+      "Falling snow. Muted footsteps.\nA little wonder in every flake.",
+      "Winter paints without a hurry.\nPause and watch the world transform."
+    ],
+    "night": [
+      "Snow catches the moonlight.\nThe world becomes a quieter place.",
+      "A thousand flakes. A million tiny glimmers.\nWinter has its own kind of magic.",
+      "The night falls softly in white.\nStay warm, wherever you are."
+    ]
+  },
+  "sleet": {
+    "day": [
+      "Ice and rain cross paths.\nTake the day slowly and stay safe.",
+      "The sky cannot quite decide.\nGive yourself permission to pause."
+    ],
+    "night": [
+      "Cold rain glitters in the dark.\nStay sheltered and let the roads clear.",
+      "Ice meets the night air.\nWarmth is worth staying in for."
+    ]
+  },
+  "hail": {
+    "day": [
+      "The sky is in a restless mood.\nFind shelter until it settles.",
+      "Ice taps against the world.\nWatch the weather from somewhere safe."
+    ],
+    "night": [
+      "Hard little echoes in the dark.\nStay inside until the sky calms.",
+      "The storm leaves its marks on the window.\nKeep yourself somewhere safe."
+    ]
+  },
+  "fog": {
+    "day": [
+      "Soft diffused light. Still morning mist.\nA peaceful, muted horizon.",
+      "The world fades at the edges.\nTake the day one step at a time.",
+      "Mist in the distance. Stillness nearby.\nNot every path needs to be clear.",
+      "A quiet world in shades of silver.\nLeave room for the unknown."
+    ],
+    "night": [
+      "The night dissolves into mist.\nLet the unseen remain unseen.",
+      "Streetlights bloom in the fog.\nThe ordinary turns into a dream.",
+      "A thousand blurred little lights.\nThe world feels wonderfully far away."
+    ]
+  },
+  "hazy": {
+    "day": [
+      "The horizon wears a veil.\nLet the morning arrive slowly.",
+      "Muted light. Distant outlines.\nSome days don't need sharp edges.",
+      "The world is softened today.\nBe gentle with yourself, too."
+    ],
+    "night": [
+      "Distant lights dissolve into the haze.\nLet the edges blur.",
+      "A hazy horizon. A quieter mind.\nDrift at your own pace."
+    ]
+  },
+  "misty": {
+    "day": [
+      "Mist curls around the morning.\nThe world is waking up slowly.",
+      "A veil of silver. A hint of green.\nLet wonder find you.",
+      "The morning hasn't revealed everything yet.\nThat's part of the beauty."
+    ],
+    "night": [
+      "Mist gathers beneath the stars.\nThe world keeps a little mystery.",
+      "Soft outlines. Distant lights.\nSomewhere between dreaming and awake."
+    ]
+  },
+  "dusty": {
+    "day": [
+      "The horizon blurs in earthy gold.\nKeep close to clean air.",
+      "Dust rides the restless wind.\nSlow down and take care outdoors."
+    ],
+    "night": [
+      "The dust settles with the daylight.\nLet the air grow quiet again.",
+      "A muted horizon beneath the dark.\nStay in where the air is clearer."
+    ]
+  },
+  "smoky": {
+    "day": [
+      "The light feels distant today.\nChoose cleaner air when you can.",
+      "A muted sky calls for a gentler pace.\nKeep your breathing space protected."
+    ],
+    "night": [
+      "The horizon dims beneath the haze.\nKeep the night air clean around you.",
+      "Distant lights, softened edges.\nStay where the air feels safer."
+    ]
+  },
+  "clear_night": {
+    "day": [
+      "Clear skies. Quiet thoughts.\nThe day is yours."
+    ],
+    "night": [
+      "Gentle night breeze. Crescent glow.\nPeaceful skies beneath the stars.",
+      "A thousand lights above.\nAnd all the time in the world.",
+      "The sky is wide awake.\nMaybe you can slow down now."
+    ]
+  },
+  "cloudy_night": {
+    "day": [
+      "Passing clouds. Soft shadows.\nA gentler pace today."
+    ],
+    "night": [
+      "Veiled moonlight. Drifting clouds.\nA quiet, moody night outside.",
+      "Clouds wander past the moon.\nEven the night has its moods.",
+      "The stars play hide and seek.\nLet the night keep a few secrets."
+    ]
+  },
+  "full_moon": {
+    "day": [
+      "Clear skies await the rising moon.\nA day full of quiet anticipation."
+    ],
+    "night": [
+      "Silver moonlight. Midnight glow.\nA luminous, serene celestial sky.",
+      "A radiant moon watches over the world.\nThe night is luminous and still.",
+      "Moonlight bathes the quiet streets.\nA night made for wonder."
+    ]
+  },
+  "no_moon": {
+    "day": [
+      "Clear open skies today.\nLook forward to the dark starry night."
+    ],
+    "night": [
+      "Velvet darkness. Sea of stars.\nQuiet stillness beneath the cosmos.",
+      "No moon in the sky. Only a sea of stars.\nBreathe in the quiet dark.",
+      "Deep cosmic stillness.\nThe universe holds you gently."
+    ]
+  },
+  "temperature_ranges": {
+    "freezing": {
+      "day": [
+        "Frost traces the edges of the world.\nKeep warm and tread carefully.",
+        "A bright, biting kind of morning.\nLet warmth be your priority."
+      ],
+      "night": [
+        "Frost glimmers beneath the stars.\nStay warm through the longest hours.",
+        "The night is sharp with cold.\nFind shelter and let the world wait."
+      ]
+    },
+    "cold": {
+      "day": [
+        "Cool air. Rosy mornings.\nWrap up and welcome the day.",
+        "The world feels crisp and new.\nCarry a little warmth with you."
+      ],
+      "night": [
+        "Cold settles over the rooftops.\nFind your warmth and stay awhile.",
+        "The stars feel closer in the cold.\nKeep cosy beneath the quiet sky."
+      ]
+    },
+    "hot": {
+      "day": [
+        "The sun is generous today.\nFind shade, water, and a slower pace.",
+        "Heat shimmers above the earth.\nLet the afternoon drift by gently.",
+        "Golden light, rising temperatures.\nKeep cool and take it easy."
+      ],
+      "night": [
+        "The earth is still holding the heat.\nGive yourself time to cool down.",
+        "Warm air. Slow hours.\nLet the night bring some relief.",
+        "The sun has set, but the warmth remains.\nKeep cool and rest easy."
+      ]
+    }
+  },
+  "sunny": {
+    "day": [
+      "Soft winds. Warm light.\nAnother beautiful day.",
+      "Golden hours. Open skies.\nThe world feels full of possibility.",
+      "Sun on your skin. A little peace.\nTake the long way home."
+    ],
+    "night": [
+      "The day leaves a little gold behind.\nLet the quiet find you.",
+      "Warm memories. Cooler skies.\nSome days end just right.",
+      "The sun has gone to rest.\nYour little corner of the universe is glowing."
+    ]
+  },
+  "clear": {
+    "day": [
+      "Nothing between you and the blue.\nBreathe a little deeper.",
+      "A sky without a single doubt.\nMake room for wonder.",
+      "Clear skies. Quiet thoughts.\nThe day is yours."
+    ],
+    "night": [
+      "A thousand lights above.\nAnd all the time in the world.",
+      "No clouds to hide the stars.\nSomewhere, the universe is saying hello.",
+      "The sky is wide awake.\nMaybe you can slow down now."
+    ]
+  },
+  "rainy": {
+    "day": [
+      "Rain on the windows. Peace in the pauses.\nLet the world wait.",
+      "Silver skies. Petrichor dreams.\nThe earth is beginning again.",
+      "A little rain, a little reset.\nSome things grow in the grey."
+    ],
+    "night": [
+      "Rain keeps the rhythm.\nLet your thoughts drift with it.",
+      "A dark sky. A warm room.\nThe world can wait until morning.",
+      "Raindrops trace the glass.\nTonight, even silence has a sound."
+    ]
+  },
+  "snowy": {
+    "day": [
+      "The world wears white today.\nEvery sound feels softer.",
+      "Falling snow. Muted footsteps.\nA little wonder in every flake.",
+      "Winter paints without a hurry.\nPause and watch the world transform."
+    ],
+    "night": [
+      "Snow catches the moonlight.\nThe world becomes a quieter place.",
+      "A thousand flakes. A million tiny glimmers.\nWinter has its own kind of magic.",
+      "The night falls softly in white.\nStay warm, wherever you are."
+    ]
+  },
+  "foggy": {
+    "day": [
+      "The world fades at the edges.\nTake the day one step at a time.",
+      "Mist in the distance. Stillness nearby.\nNot every path needs to be clear.",
+      "A quiet world in shades of silver.\nLeave room for the unknown."
+    ],
+    "night": [
+      "The night dissolves into mist.\nLet the unseen remain unseen.",
+      "Streetlights bloom in the fog.\nThe ordinary turns into a dream.",
+      "A thousand blurred little lights.\nThe world feels wonderfully far away."
+    ]
+  },
+  "humid": {
+    "day": [
+      "The air hangs heavy and still.\nHydrate, find shade, breathe easy.",
+      "A little warmth in every breath.\nTake the day at your own pace."
+    ],
+    "night": [
+      "The night air clings a little longer.\nKeep cool and let yourself unwind.",
+      "Heavy air. Quiet streets.\nMay the breeze find you soon."
+    ]
+  },
+  "cold": {
+    "day": [
+      "Cool air. Rosy mornings.\nWrap up and welcome the day.",
+      "The world feels crisp and new.\nCarry a little warmth with you."
+    ],
+    "night": [
+      "Cold settles over the rooftops.\nFind your warmth and stay awhile.",
+      "The stars feel closer in the cold.\nKeep cosy beneath the quiet sky."
+    ]
+  },
+  "freezing": {
+    "day": [
+      "Frost traces the edges of the world.\nKeep warm and tread carefully.",
+      "A bright, biting kind of morning.\nLet warmth be your priority."
+    ],
+    "night": [
+      "Frost glimmers beneath the stars.\nStay warm through the longest hours.",
+      "The night is sharp with cold.\nFind shelter and let the world wait."
+    ]
+  },
+  "hot": {
+    "day": [
+      "The sun is generous today.\nFind shade, water, and a slower pace.",
+      "Heat shimmers above the earth.\nLet the afternoon drift by gently.",
+      "Golden light, rising temperatures.\nKeep cool and take it easy."
+    ],
+    "night": [
+      "The earth is still holding the heat.\nGive yourself time to cool down.",
+      "Warm air. Slow hours.\nLet the night bring some relief.",
+      "The sun has set, but the warmth remains.\nKeep cool and rest easy."
+    ]
+  },
+  "unknown": {
+    "day": [
+      "The sky hasn't told us everything.\nLook up and make your own little story.",
+      "A day still unfolding.\nThere's always something to notice.",
+      "Whatever the weather brings.\nFind one small thing to love."
+    ],
+    "night": [
+      "The sky keeps a few secrets.\nLet the stars tell the rest.",
+      "Night arrives in its own time.\nTake a breath and look up.",
+      "Somewhere above the quiet, the universe goes on.\nRest easy."
+    ]
+  }
+}

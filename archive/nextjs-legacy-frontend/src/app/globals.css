@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 240, 253, 244;
+  --background-start-rgb: 3, 7, 4;
+  --background-end-rgb: 1, 4, 2;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: 
+    radial-gradient(ellipse at 70% 0%, rgba(16, 185, 129, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 30% 100%, rgba(52, 211, 153, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 50% 50%, #061a10 0%, #020704 60%, #010302 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism with deep obsidian interiors & emerald borders */
+.glass-panel {
+  background: rgba(4, 15, 9, 0.55);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+.glass-panel:hover {
+  border-color: rgba(52, 211, 153, 0.3);
+  box-shadow: 0 10px 40px -10px rgba(16, 185, 129, 0.15);
+}
+
+.glass-panel-glow {
+  background: rgba(7, 20, 12, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(52, 211, 153, 0.32);
+  box-shadow: 0 0 40px -10px rgba(16, 185, 129, 0.28);
+}
+
+.glass-panel-warning {
+  background: rgba(24, 16, 7, 0.78);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  box-shadow: 0 0 35px -10px rgba(245, 158, 11, 0.18);
+}
+
+.glass-panel-subtle {
+  background: rgba(4, 11, 7, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(16, 185, 129, 0.08);
+}
+
+/* Subtle glowing input */
+.input-glass {
+  background: rgba(4, 12, 7, 0.85);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #f0fdf4;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.input-glass:focus {
+  border-color: #34d399;
+  background: rgba(6, 18, 11, 0.95);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25), 0 0 20px -3px rgba(16, 185, 129, 0.2);
+  outline: none;
+}
+
+/* Custom scrollbars in translucent emerald */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(3, 7, 4, 0.7);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(52, 211, 153, 0.45);
+}
+
+/* Hide scrollbar for clean horizontal scrolls */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

@@ -1,0 +1,116 @@
+## Use “human label + exact value”
+
+Don’t hide the actual number completely. Pair a friendly label with the technical value so the app remains transparent.
+
+| Technical field | Primary UI label | Supporting value | Tooltip title |
+|---|---|---|---|
+| PM2.5 | **Air particles** | `47 µg/m³` | “What are air particles?” |
+| PM10 | **Coarse dust** | `82 µg/m³` | “What is coarse dust?” |
+| Apparent temperature | **Feels like** | `35°C` | “Why does it feel hotter?” |
+| Precipitation probability | **Chance of rain** | `20%` | “What does 20% mean?” |
+| Wind speed | **Wind** | `12 km/h · ESE` | “How is wind measured?” |
+| Humidity | **Humidity** | `68%` | “Why does humidity matter?” |
+| Visibility | **Visibility** | `8 km` | “What affects visibility?” |
+| Product ranking | **Outdoor comfort score** | `Lower is better` | “How is this ordered?” |
+
+For the scheduler itself, avoid making “Air particles” sound like a validated health score. Use copy such as:
+
+> **Air particles forecast**  
+> 47 µg/m³ PM2.5 · modeled forecast
+
+That is friendlier than leading with `PM2.5`, while remaining honest.
+
+## Suggested recommendation copy
+
+Instead of:
+
+> PM2.5: 47 µg/m³  
+> Apparent temperature: 31°C  
+> Precipitation probability: 10%
+
+Use:
+
+> **Air particles:** Lower than later today  
+> 47 µg/m³ PM2.5  
+>
+> **Feels like:** 31°C  
+>  
+> **Chance of rain:** 10%
+
+Then show the information icon after each label:
+
+```text
+Air particles  ⓘ
+47 µg/m³ PM2.5
+```
+
+## Tooltip content
+
+Keep tooltips short—one plain-language explanation, then the technical name.
+
+### Air particles ⓘ
+
+> Tiny particles in the air that can come from traffic, dust, burning, and industry.  
+> **Technical measure:** PM2.5, shown in micrograms per cubic metre (µg/m³).  
+> This is a modeled forecast for your selected location, not a local monitor reading.
+
+### Feels like ⓘ
+
+> A weather estimate that combines temperature with humidity, wind, and sunlight. It can feel warmer or cooler than the measured air temperature.  
+> **Technical measure:** apparent temperature.
+
+### Outdoor comfort score ⓘ
+
+> A Cadence ranking used to compare available time windows using your selected preferences for air particles, feels-like temperature, and rain.  
+> It is not a health score, medical assessment, or guarantee of safety.
+
+### Forecast quality ⓘ
+
+> Air-quality values are model estimates for a regional grid, so actual neighborhood conditions may differ. Check local official guidance if conditions are concerning.
+
+## Use Indian terminology carefully
+
+For India, avoid showing **“AQI”** as the main label if the value is Open-Meteo’s `us_aqi`. Users will naturally assume it means CPCB’s familiar Indian AQI.
+
+Use one of these instead:
+
+- **Air particles forecast** — recommended
+- **Air quality forecast**
+- **Outdoor air conditions**
+- **Pollution forecast** — more direct, but can feel alarming
+- **Fine-particle level** — accurate, slightly more technical
+
+If you later add a genuine CPCB-derived estimate, you can show:
+
+```text
+Air quality category: Moderate ⓘ
+Forecast-based CPCB PM estimate — not an official station AQI
+```
+
+CPCB uses six color-coded categories specifically to communicate air quality and likely impacts in accessible language, so your UI’s plain-language-first strategy aligns well with how India’s public guidance is designed. [ncdc.mohfw.gov](https://ncdc.mohfw.gov.in/uploads/pdf/air4.pdf)
+
+## Interaction design
+
+- **Desktop:** hover or keyboard focus on `ⓘ` opens the tooltip.
+- **Mobile:** tap opens a small bottom sheet or anchored popover; hover does not exist on touch devices.
+- **Accessibility:** Make the icon a real button with an accessible name, e.g. `aria-label="What are air particles?"`; make the popover dismissible via Escape and tap outside.
+- **Do not rely only on color:** Pair color states with words such as “Lower than later today,” “Above your preference,” or “Data unavailable.”
+- **Keep the tooltip out of the decision path:** Users should understand the main recommendation without opening it.
+
+## Good labels for Cadence
+
+A clean Cadence card could be:
+
+```text
+BEST WINDOW FOR YOUR WALK
+6:00–6:45 PM · Meets your preferences
+
+Air particles ⓘ        Feels like ⓘ       Rain chance ⓘ
+47 µg/m³ PM2.5         29°C               10%
+
+Why this time?
+Lower air-particle forecast and cooler feels-like
+conditions than most other available windows.
+```
+
+That feels approachable for ordinary users without concealing what the application is actually measuring.

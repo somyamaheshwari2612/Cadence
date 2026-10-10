@@ -1,9 +1,16 @@
+import os
+import sys
+
+# Ensure backend directory is in sys.path so services is always found
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from services.env_data import get_coordinates, get_location_candidates, fetch_environmental_data
 from services.scheduler import find_optimal_schedule
-from services.llm_engine import generate_explanation, verify_image, RateLimitExceeded
-from services.national_context import get_national_context
+from services.llm_engine import verify_image, RateLimitExceeded
 import base64
 import json
 import io
@@ -21,6 +28,25 @@ ALLOWED_IMAGE_SIGNATURES = {
 }
 MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB decoded image limit
 MAX_IMAGE_DIMENSION = 4096          # Max width or height in pixels
+
+def build_cors_preflight_response():
+    response = jsonify({})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    return response, 200
+
+def corsify_response(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    return response
+
 
 
 def _validate_image_bytes(image_bytes):
@@ -85,12 +111,15 @@ def _get_png_dimensions(data):
     return width, height
 
 
-@app.route('/api/geocode', methods=['POST'])
+@app.route('/api/geocode', methods=['POST', 'OPTIONS'])
 def geocode():
     """
     Returns candidate places for a location string.
     User confirms the correct one before scheduling.
     """
+    if request.method == 'OPTIONS':
+        return build_cors_preflight_response()
+        
     try:
         data = request.json
         location = data.get('location', '').strip()
@@ -101,39 +130,28 @@ def geocode():
             return jsonify({"error": "Location string too long"}), 400
             
         candidates = get_location_candidates(location)
-        
-        if not candidates:
-            return jsonify({"error": f"No places found matching '{location}'"}), 404
-            
-        return jsonify({"candidates": candidates})
+        return corsify_response(jsonify({"candidates": candidates or []}))
         
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        traceback.print_exc()
+        return corsify_response(jsonify({"error": str(e)})), 500
 
 
-@app.route('/api/national-context', methods=['GET'])
-def national_context():
-    """
-    Returns the cached National Context summary across 100 Indian cities
-    (Median U.S. AQI, Range, Cleanest/Most Polluted, Model Info).
-    Cached for 1 hour to prevent Open-Meteo rate limiting and eliminate latency.
-    """
-    try:
-        force = request.args.get('refresh', '').lower() == 'true'
-        context_data = get_national_context(force_refresh=force)
-        return jsonify(context_data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
-@app.route('/api/schedule', methods=['POST'])
+
+@app.route('/api/schedule', methods=['POST', 'OPTIONS'])
 def schedule_task():
     """
     Accepts confirmed coordinates (or location string) and user preferences.
     Returns scheduling result with raw data and optional LLM explanation.
     """
+    if request.method == 'OPTIONS':
+        return build_cors_preflight_response()
+        
     try:
-        data = request.json
+        data = request.get_json(silent=True) or {}
         
         # Accept either confirmed coordinates or a location string (convenience)
         latitude = data.get('latitude')
@@ -141,23 +159,62 @@ def schedule_task():
         location = data.get('location')
         
         if latitude is not None and longitude is not None:
-            coords = {"latitude": latitude, "longitude": longitude, "name": "Custom", "country": ""}
+            try:
+                lat = float(latitude)
+                lon = float(longitude)
+            except (ValueError, TypeError):
+                return jsonify({"error": "latitude and longitude must be valid numbers"}), 400
+            loc_name = data.get('name') or data.get('location_name') or "Selected Location"
+            country = data.get('country', '')
+            coords = {"latitude": lat, "longitude": lon, "name": loc_name, "country": country}
         elif location:
             coords = get_coordinates(location)
         else:
             return jsonify({"error": "Either (latitude, longitude) or location is required"}), 400
         
-        duration = data.get('duration_hours', 1)
-        max_temp = data.get('max_temp', 45.0)
-        max_aqi = data.get('max_aqi', 200)
-        rain_ok = data.get('rain_ok', False)
-        rain_threshold = data.get('rain_threshold', 20)
-        enable_fallback = data.get('enable_fallback', False)
-        task_type = data.get('task_type', 'moderate')
+        # Flexible duration parsing (minutes or hours)
+        duration_minutes = data.get('duration_minutes')
+        if duration_minutes is not None:
+            try:
+                duration_minutes = int(float(duration_minutes))
+            except (ValueError, TypeError):
+                duration_minutes = 45
+        else:
+            try:
+                duration_minutes = int(float(data.get('duration_hours', 1)) * 60)
+            except (ValueError, TypeError):
+                duration_minutes = 60
+                
+        try:
+            avail_start = int(float(data.get('availability_start_hour', 6)))
+        except (ValueError, TypeError):
+            avail_start = 6
+            
+        try:
+            avail_end = int(float(data.get('availability_end_hour', 21)))
+        except (ValueError, TypeError):
+            avail_end = 21
+            
+        task_name = data.get('task_name') or data.get('task') or "Walk"
         
-        # Basic input validation
-        if not isinstance(duration, (int, float)) or duration < 1 or duration > 12:
-            return jsonify({"error": "duration_hours must be between 1 and 12"}), 400
+        # Flexible max_temp parsing
+        try:
+            max_temp = float(data.get('max_temp', 45.0))
+        except (ValueError, TypeError):
+            max_temp = 45.0
+            
+        # Support both max_pm25 and max_aqi seamlessly
+        raw_pm25 = data.get('max_pm25')
+        raw_aqi = data.get('max_aqi')
+        max_pm25 = float(raw_pm25) if raw_pm25 is not None else None
+        max_aqi = float(raw_aqi) if raw_aqi is not None else None
+        
+        if max_pm25 is None and max_aqi is None:
+            max_pm25 = 60.0 # Default PM2.5 in ug/m3
+            
+        rain_ok = bool(data.get('rain_ok', False))
+        rain_threshold = float(data.get('rain_threshold', 20))
+        enable_fallback = bool(data.get('enable_fallback', False))
         
         # 1. Fetch forecast data
         env_data_result = fetch_environmental_data(coords['latitude'], coords['longitude'])
@@ -166,40 +223,42 @@ def schedule_task():
             
         # 2. Find Schedule with distinct outcome evaluation
         result = find_optimal_schedule(
-            env_data_result, int(duration), max_temp, max_aqi,
-            rain_ok=rain_ok, rain_threshold=rain_threshold,
-            enable_fallback=enable_fallback, task_type=task_type
+            env_data_result,
+            max_temp=max_temp,
+            max_pm25=max_pm25,
+            max_aqi=max_aqi,
+            rain_ok=rain_ok,
+            rain_threshold=rain_threshold,
+            enable_fallback=enable_fallback,
+            duration_minutes=duration_minutes,
+            availability_start_hour=avail_start,
+            availability_end_hour=avail_end,
+            task_name=task_name
         )
         
-        # 3. Generate LLM Explanation (optional enhancement, not authoritative)
-        if result.get("status") == "success" and "recommendation" in result:
-            fact_string = result["recommendation"]["fact_string"]
-            result["recommendation"]["human_explanation"] = generate_explanation(
-                fact_string, outcome_type="preference_qualified"
-            )
-        elif result.get("status") == "fallback_alternative" and "alternative" in result:
-            fact_string = result["alternative"]["fact_string"]
-            result["alternative"]["human_explanation"] = generate_explanation(
-                fact_string, outcome_type="best_available_alternative"
-            )
-        
+        result["task_name"] = task_name
         result["location"] = coords
-        return jsonify(result)
+        return corsify_response(jsonify(result))
         
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return corsify_response(jsonify({"error": str(e)})), 400
     except ConnectionError as e:
-        return jsonify({"error": f"External API unavailable: {str(e)}"}), 502
+        return corsify_response(jsonify({"error": f"External API unavailable: {str(e)}"})), 502
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        traceback.print_exc()
+        return corsify_response(jsonify({"error": str(e)})), 500
 
 
-@app.route('/api/verify-task', methods=['POST'])
+@app.route('/api/verify-task', methods=['POST', 'OPTIONS'])
 def verify_task():
     """
     Image-based scene/gesture check for eco-streak tasks.
     Returns verified / not_verified / inconclusive — never "fraudulent".
     """
+    if request.method == 'OPTIONS':
+        return build_cors_preflight_response()
+        
     try:
         data = request.json
         image_base64 = data.get('image')
@@ -256,19 +315,19 @@ def verify_task():
             "model_assessment": model_output
         }
         
-        return jsonify(response)
+        return corsify_response(jsonify(response))
         
     except RateLimitExceeded:
-        return jsonify({"error": "Service busy. Please try again shortly."}), 503
+        return corsify_response(jsonify({"error": "Service busy. Please try again shortly."})), 503
     except json.JSONDecodeError:
-        return jsonify({
+        return corsify_response(jsonify({
             "task_name": task_name,
             "status": "inconclusive",
             "user_message": "Verification input could not be reliably evaluated. Please try again.",
             "model_assessment": {"notes": "Model returned unparseable output"}
-        }), 200
+        })), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return corsify_response(jsonify({"error": str(e)})), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
