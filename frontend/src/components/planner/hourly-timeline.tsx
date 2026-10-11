@@ -148,8 +148,8 @@ export function HourlyTimeline({
           let reasonDetail = '';
           if (unsafe) {
             if (!pm25Meets) {
-              reason = 'Air particles';
-              reasonDetail = `Air particles: ${h.pm25} µg/m³ PM2.5`;
+              reason = 'Air Quality';
+              reasonDetail = `Air Quality: ${h.pm25} AQI`;
             } else if (!tempMeets) {
               reason = 'Feels like';
               reasonDetail = `Feels like: ${h.apparent}°C`;
@@ -245,7 +245,7 @@ export function HourlyTimeline({
               aria-label={`${formatTime(h.hour * 60)}: ${
                 missing
                   ? 'Data unavailable'
-                  : `${h.apparent}°C feels-like, Air particles ${h.pm25} µg/m³ PM2.5, rain chance ${h.rain}%`
+                  : `${h.apparent}°C feels-like, Air Quality ${h.pm25} AQI, rain chance ${h.rain}%`
               }${selected ? ', Selected activity window' : ''}${
                 unsafe ? `, Outside preferences: ${reason}` : ''
               }${!inRange ? ', Outside availability window' : ''}`}
@@ -286,11 +286,11 @@ export function HourlyTimeline({
                 </div>
               </div>
 
-              {/* Air Particles (PM2.5) Metric Bar */}
+              {/* Air Quality (AQI) Metric Bar */}
               <div className="card-metric-block">
                 <div className="metric-header">
                   <span className="flex items-center gap-1 text-[11px]">
-                    <Wind className="w-3 h-3 text-[var(--primary)]" /> Air particles
+                    <Wind className="w-3 h-3 text-[var(--primary)]" /> Air Quality
                   </span>
                   <strong className="text-xs">{missing ? '—' : `${h.pm25}`}</strong>
                 </div>
@@ -344,9 +344,9 @@ export function HourlyTimeline({
             {block
               ? `Selected window: ${formatTime(block.start)} – ${formatTime(
                   block.end
-                )} (${preferences.duration} continuous minutes) · PM2.5: ${
+                )} (${preferences.duration} continuous minutes) · Air Quality: ${
                   block.pm25
-                } µg/m³ · Apparent Temp: ${block.apparent}°C · Rain: ${block.rain}%`
+                } AQI · Apparent Temp: ${block.apparent}°C · Rain: ${block.rain}%`
               : 'No continuous window meets all preferences in this range.'}
           </p>
         </div>

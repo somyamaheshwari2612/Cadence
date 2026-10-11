@@ -28,9 +28,10 @@ interface TooltipDefinition {
 
 const TOOLTIP_DEFINITIONS: Record<AliasTooltipType, TooltipDefinition> = {
   'air-particles': {
-    title: 'What are air particles?',
-    explanation: 'Tiny particles in the air that can come from traffic, dust, burning, and industry.',
-    technicalMeasure: 'PM2.5, shown in micrograms per cubic metre (µg/m³).',
+    title: 'What is Air Quality (AQI)?',
+    explanation:
+      'Air Quality Index measures how clean or polluted the air is for outdoor activities, based on airborne particles (PM2.5) from dust, smoke, and traffic. Lower numbers mean cleaner, healthier air.',
+    technicalMeasure: 'Air Quality Index (AQI) based on modeled PM2.5 levels.',
     note: 'This is a modeled forecast for your selected location, not a local monitor reading.',
   },
   'coarse-dust': {

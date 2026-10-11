@@ -452,37 +452,37 @@ export function EnvironmentBentoGrid({
       </div>
 
       <div className="metrics-grid">
-        {/* 1. AIR PARTICLES FORECAST (CPCB PM ESTIMATE) */}
+        {/* 1. AIR QUALITY FORECAST */}
         <div
           className="metric metric-aqi"
-          title="Air particles forecast based on modeled PM2.5 concentrations; not an official CPCB station AQI."
+          title="Air quality forecast based on modeled PM2.5 concentrations; not an official CPCB station AQI."
         >
           <div className="metric-top flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <div className="metric-icon">
                 <Wind aria-hidden="true" />
               </div>
-              <span>Air particles forecast</span>
+              <span>Air Quality</span>
             </div>
             <CadenceInfoTooltip type="air-particles" />
           </div>
           <div className="metric-value">
             {pm25}
-            <small className="text-xs text-[var(--muted-foreground)] ml-1">µg/m³ PM2.5</small>
+            <small className="text-xs text-[var(--muted-foreground)] ml-1">AQI</small>
           </div>
           <div className="metric-status flex items-center gap-1">
-            <span>CPCB: {cpcbCategory}</span>
-            <span className="text-[10px] text-[var(--muted-foreground)] font-normal">(~{cpcbIndicator})</span>
+            <span>Air: {cpcbCategory}</span>
+            <span className="text-[10px] text-[var(--muted-foreground)] font-normal">(~{cpcbIndicator} AQI)</span>
           </div>
           <div className="text-[11px] text-[var(--muted-foreground)] leading-tight mt-1 line-clamp-1">
             Modeled regional forecast
           </div>
           <div className="metric-bottom mt-1.5 flex items-center justify-between gap-1.5">
             <div className="meter flex-1" style={{ width: 'auto' }} />
-            <span className="text-[9px] text-[var(--muted-foreground)] whitespace-nowrap shrink-0">CPCB estimate</span>
+            <span className="text-[9px] text-[var(--muted-foreground)] whitespace-nowrap shrink-0">Air quality estimate</span>
           </div>
           <p className="text-[10px] text-[var(--muted-subordinate)] mt-1.5 leading-tight flex items-center gap-1">
-            <span>Forecast-based CPCB PM estimate — not station AQI</span>
+            <span>Forecast-based air quality estimate</span>
             <CadenceInfoTooltip type="cpcb-estimate" />
           </p>
         </div>

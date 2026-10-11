@@ -185,15 +185,29 @@ def schedule_task():
             except (ValueError, TypeError):
                 duration_minutes = 60
                 
+        avail_start_m = data.get('availability_start_minutes')
+        if avail_start_m is not None:
+            try:
+                avail_start_m = int(float(avail_start_m))
+            except (ValueError, TypeError):
+                avail_start_m = None
+
+        avail_end_m = data.get('availability_end_minutes')
+        if avail_end_m is not None:
+            try:
+                avail_end_m = int(float(avail_end_m))
+            except (ValueError, TypeError):
+                avail_end_m = None
+
         try:
-            avail_start = int(float(data.get('availability_start_hour', 6)))
+            avail_start = float(data.get('availability_start_hour', 6))
         except (ValueError, TypeError):
-            avail_start = 6
+            avail_start = 6.0
             
         try:
-            avail_end = int(float(data.get('availability_end_hour', 21)))
+            avail_end = float(data.get('availability_end_hour', 21))
         except (ValueError, TypeError):
-            avail_end = 21
+            avail_end = 21.0
             
         task_name = data.get('task_name') or data.get('task') or "Walk"
         
@@ -233,6 +247,8 @@ def schedule_task():
             duration_minutes=duration_minutes,
             availability_start_hour=avail_start,
             availability_end_hour=avail_end,
+            availability_start_minutes=avail_start_m,
+            availability_end_minutes=avail_end_m,
             task_name=task_name
         )
         

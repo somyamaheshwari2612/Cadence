@@ -231,6 +231,29 @@ def experimental_product_score(temp, pm25, rain_prob=0, hour_of_day=None, is_str
     return round(temp_component + pm25_component + rain_component + midday_penalty, 2)
 
 
+def is_slot_inside_availability(slot_start_dt, duration_minutes, avail_start_m, avail_end_m):
+    """
+    Checks if a candidate slot strictly fits inside the user's availability window.
+    avail_start_m and avail_end_m are minute offsets from midnight (0 to 1440).
+    """
+    start_m = slot_start_dt.hour * 60 + slot_start_dt.minute
+    end_m = start_m + duration_minutes
+
+    if avail_start_m <= avail_end_m:
+        # Standard daytime window within same day (e.g., 4:00 AM to 7:30 AM -> 240 to 450)
+        # Block must start on or after start_m and end on or before end_m without crossing midnight
+        return (start_m >= avail_start_m) and (end_m <= avail_end_m)
+    else:
+        # Window spans overnight past midnight (e.g., 10:00 PM to 6:00 AM -> 1320 to 360)
+        if start_m >= avail_start_m and end_m <= 1440:
+            return True
+        if start_m < avail_end_m and end_m <= avail_end_m:
+            return True
+        if start_m >= avail_start_m and end_m > 1440 and (end_m - 1440) <= avail_end_m:
+            return True
+        return False
+
+
 def find_optimal_schedule(
     env_data_result,
     duration_hours=1,
@@ -243,6 +266,8 @@ def find_optimal_schedule(
     duration_minutes=None,
     availability_start_hour=6,
     availability_end_hour=21,
+    availability_start_minutes=None,
+    availability_end_minutes=None,
     task_name="Walk",
     **kwargs
 ):
@@ -250,7 +275,7 @@ def find_optimal_schedule(
     Evaluates forecast slots with:
     1. Data-quality exclusions (missing values, temporal discontinuities, stale data).
     2. Exact duration in minutes (15, 30, 45, 60, 120, etc.) spanning continuous hourly periods.
-    3. User availability window filtering (e.g. 6:00 AM - 9:00 PM).
+    3. User availability window filtering (e.g. 6:00 AM - 9:00 PM or custom minutes).
     4. Deterministic explainability bullets ("Why this window?" / "Why this alternative?").
     5. Complete 24-hour hourly decision timeline payload for the evidence track.
     6. Strict adherence to user-specified copy and outcome states.
@@ -262,6 +287,23 @@ def find_optimal_schedule(
     if duration_minutes is None:
         duration_minutes = int(float(duration_hours) * 60)
     duration_minutes = max(15, min(720, int(duration_minutes)))
+
+    # Parse availability bounds into minutes from midnight (0 to 1440)
+    if availability_start_minutes is not None:
+        try:
+            avail_start_m = int(float(availability_start_minutes))
+        except (ValueError, TypeError):
+            avail_start_m = int(float(availability_start_hour) * 60)
+    else:
+        avail_start_m = int(float(availability_start_hour) * 60)
+
+    if availability_end_minutes is not None:
+        try:
+            avail_end_m = int(float(availability_end_minutes))
+        except (ValueError, TypeError):
+            avail_end_m = int(float(availability_end_hour) * 60)
+    else:
+        avail_end_m = int(float(availability_end_hour) * 60)
     
     # Hours required to span this continuous block
     continuous_hours = max(1, math.ceil(duration_minutes / 60))
@@ -346,16 +388,9 @@ def find_optimal_schedule(
         slot_start_dt = datetime.fromisoformat(block_slots[0]["time"])
         slot_end_dt = slot_start_dt + timedelta(minutes=duration_minutes)
         
-        # Check if inside user's available window:
-        # e.g., availability_start_hour=6 (6 AM), availability_end_hour=21 (9 PM)
-        # Block must start on or after start_hour and end on or before end_hour
-        start_hour_frac = slot_start_dt.hour + slot_start_dt.minute / 60.0
-        end_hour_frac = slot_end_dt.hour + slot_end_dt.minute / 60.0
-        
-        # Also handles day transition if spanning past midnight
-        is_inside_availability = (
-            start_hour_frac >= availability_start_hour and
-            end_hour_frac <= availability_end_hour
+        # Check if strictly inside user's available window using minute offsets
+        is_inside_availability = is_slot_inside_availability(
+            slot_start_dt, duration_minutes, avail_start_m, avail_end_m
         )
         
         # Extract hourly values
@@ -494,6 +529,7 @@ def find_optimal_schedule(
             "start_time_formatted": format_time_12h(slot_start_dt),
             "end_time_formatted": format_time_12h(slot_end_dt),
             "display_window": display_window,
+            "day_label": "Today" if slot_start_dt.date() == first_slot_dt.date() else ("Tomorrow" if slot_start_dt.date() == first_slot_dt.date() + timedelta(days=1) else slot_start_dt.strftime("%a")),
             "start_time_utc": block_slots[0]["time_utc"],
             "end_time_utc": (block_slots[-1]["utc_dt"] + timedelta(hours=1)).isoformat(),
             "duration_minutes": duration_minutes,
@@ -541,8 +577,12 @@ def find_optimal_schedule(
     for idx in range(start_idx, timeline_end_idx):
         s = env_data[idx]
         dt = datetime.fromisoformat(s["time"])
-        hour_val = dt.hour
-        in_avail = (hour_val >= availability_start_hour and hour_val < availability_end_hour)
+        hour_start_m = dt.hour * 60 + dt.minute
+        hour_end_m = hour_start_m + 60
+        if avail_start_m <= avail_end_m:
+            in_avail = (hour_start_m >= avail_start_m and hour_end_m <= avail_end_m)
+        else:
+            in_avail = (hour_start_m >= avail_start_m or hour_end_m <= avail_end_m)
         
         temp_val = s.get("apparent_temperature")
         t_actual = s.get("temperature")
@@ -594,43 +634,72 @@ def find_optimal_schedule(
             "score": score_hr
         })
 
-    # Separate qualifying candidate blocks
-    qualifying = [b for b in candidate_blocks if b["meets_preferences"]]
-    qualifying.sort(key=lambda x: x["experimental_product_score"])
-    
-    avail_start_str = f"{availability_start_hour % 12 or 12} {'AM' if availability_start_hour < 12 else 'PM'}"
-    avail_end_str = f"{availability_end_hour % 12 or 12} {'AM' if availability_end_hour < 12 else 'PM'}"
+    # Format human-readable availability string using minute offsets
+    dummy_start = datetime(2000, 1, 1, (avail_start_m // 60) % 24, avail_start_m % 60)
+    dummy_end = datetime(2000, 1, 1, (avail_end_m // 60) % 24, avail_end_m % 60)
+    avail_start_str = format_time_12h(dummy_start)
+    avail_end_str = format_time_12h(dummy_end)
 
     # -----------------------------------------------------------------
-    # Outcome 1: Preference-Qualified Option ("Meets your preferences")
+    # Candidate Partitioning & Dual-Window Strategy
     # -----------------------------------------------------------------
-    if qualifying:
-        best = qualifying[0]
+    # 1. Blocks strictly within user's availability schedule
+    schedule_blocks = [b for b in candidate_blocks if b["is_inside_availability"]]
+    
+    # 2. Qualifying blocks strictly within user's availability schedule (0 violations)
+    qualifying_schedule = [b for b in schedule_blocks if b["meets_preferences"]]
+    qualifying_schedule.sort(key=lambda x: x["experimental_product_score"])
+    
+    # 3. Best block strictly within schedule (fewest violations, then lowest discomfort)
+    best_schedule = None
+    if schedule_blocks:
+        sorted_schedule = sorted(
+            schedule_blocks,
+            key=lambda x: (len(x["preference_violations"]), x["experimental_product_score"])
+        )
+        best_schedule = sorted_schedule[0]
+        
+    # 4. Optimal weather block across entire day (cleanest air / lowest discomfort)
+    qualifying_all = [b for b in candidate_blocks if len(b["preference_violations"]) == 0]
+    if qualifying_all:
+        qualifying_all.sort(key=lambda x: x["experimental_product_score"])
+        best_overall = qualifying_all[0]
+    else:
+        best_overall = sorted(
+            candidate_blocks,
+            key=lambda x: (len(x["preference_violations"]), x["experimental_product_score"])
+        )[0]
+
+    # -----------------------------------------------------------------
+    # Outcome 1: Preference-Qualified Option Inside User's Schedule
+    # -----------------------------------------------------------------
+    if qualifying_schedule:
+        best = qualifying_schedule[0]
         best["outcome_type"] = OUTCOME_PREFERENCE_QUALIFIED
         best["outcome_label"] = LABEL_PREFERENCE_QUALIFIED
         best["task_name"] = task_name
+        best["is_schedule_match"] = True
+        best["timing_status"] = "meets_timing_constraints"
         
         # Tag hours in decision timeline
         for item in decision_timeline:
             if best["start_time"] <= item["time"] < best["end_time"]:
                 item["is_selected_block"] = True
             
-        # Deterministic explainability bullets aligned with IndiaAware.md
         cpcb_tag = f" (CPCB {best.get('cpcb_category', 'Indicator')})" if best.get('cpcb_category') else ""
         heat_tag = f" ({best.get('heat_label', '')})" if best.get('heat_label') else ""
         why_bullets = [
             f"It fits your requested {duration_desc} duration.",
-            f"It is inside your selected availability: {avail_start_str}–{avail_end_str}.",
+            f"Strictly inside your requested timing: {avail_start_str}–{avail_end_str}.",
             f"Forecast PM2.5 is {best['mean_pm25']} µg/m³{cpcb_tag}.",
             f"Apparent temperature is {best['mean_apparent_temperature']}°C{heat_tag}.",
             f"Rain probability ({best['max_precipitation_probability']}%) is within your stated preference."
         ]
         best["why_this_window"] = why_bullets
         
-        # User requested exact copy:
         best["chosen_rationale"] = (
-            f"Chosen because it is the lowest-ranked available continuous "
-            f"{duration_desc} block within your preferences."
+            f"Chosen because it strictly fits your selected {avail_start_str}–{avail_end_str} window "
+            f"and meets all your environmental preferences."
         )
         
         best["fact_string"] = (
@@ -642,14 +711,37 @@ def find_optimal_schedule(
             f"Rain probability     {best['max_precipitation_probability']}%\n\n"
             f"{best['chosen_rationale']}"
         )
+
+        has_dual = bool(
+            best_overall and 
+            best_overall["start_time"] != best["start_time"] and 
+            best_overall["experimental_product_score"] < best["experimental_product_score"]
+        )
+
+        if has_dual:
+            best_overall["task_name"] = task_name
+            best_overall["is_weather_optimal"] = True
+            best_overall["timing_status"] = "optimal_weather_alternative"
+            best_overall["outcome_label"] = "Optimal weather alternative"
+            best_overall["why_this_alternative"] = [
+                f"Lowest outdoor discomfort score ({best_overall['experimental_product_score']}) across the 24-hour forecast.",
+                f"Apparent temperature: {best_overall['mean_apparent_temperature']}°C · PM2.5: {best_overall['mean_pm25']} µg/m³.",
+                "Optional alternative if you have flexible timing outside your requested schedule."
+            ]
+            best_overall["chosen_rationale"] = (
+                f"Alternative window with lower outdoor discomfort if you have schedule flexibility."
+            )
         
         return {
             "status": "success",
             "outcome_type": OUTCOME_PREFERENCE_QUALIFIED,
             "outcome_label": LABEL_PREFERENCE_QUALIFIED,
             "recommendation": best,
+            "schedule_window": best,
+            "weather_alternative": best_overall if has_dual else None,
+            "has_dual_recommendation": has_dual,
             "decision_timeline": decision_timeline,
-            "total_qualifying_blocks": len(qualifying),
+            "total_qualifying_blocks": len(qualifying_schedule),
             "total_candidate_blocks": len(candidate_blocks),
             "model_caveat": MODEL_CAVEAT,
             "official_guidance": OFFICIAL_GUIDANCE,
@@ -658,16 +750,46 @@ def find_optimal_schedule(
         }
     
     # -----------------------------------------------------------------
-    # Outcome 2: No Qualifying Slots / Opt-In Alternative
+    # Outcome 2: No Qualifying Slots in Schedule -> Dual Recommendation
+    # 1. Schedule Window (meets timing constraints, least worst in schedule)
+    # 2. Weather Alternative (optimal weather conditions across entire day)
     # -----------------------------------------------------------------
-    # Prioritize candidates inside availability if possible, else all
-    avail_candidates = [b for b in candidate_blocks if b["is_inside_availability"]]
-    pool_for_alt = avail_candidates if avail_candidates else candidate_blocks
-    sorted_alts = sorted(pool_for_alt, key=lambda x: x["experimental_product_score"])
-    least_adverse = sorted_alts[0]
-    least_adverse["task_name"] = task_name
+    if best_schedule:
+        best_schedule["task_name"] = task_name
+        best_schedule["is_schedule_match"] = True
+        best_schedule["timing_status"] = "meets_timing_constraints"
+        best_schedule["outcome_type"] = "schedule_fit"
+        best_schedule["outcome_label"] = "Fits your schedule"
+        top_viol = best_schedule["preference_violations"][0] if best_schedule["preference_violations"] else None
+        viol_txt = f"Exceeds {top_viol['label']} preference by {top_viol['excess']} {top_viol['unit']}." if top_viol else "Meets environmental preferences."
+        best_schedule["why_this_window"] = [
+            f"Strictly fits within your requested {avail_start_str}–{avail_end_str} timing.",
+            f"Selected to respect your daily commute or office schedule.",
+            viol_txt
+        ]
+        best_schedule["chosen_rationale"] = (
+            f"Selected because it strictly respects your {avail_start_str}–{avail_end_str} timing constraint. "
+            f"It is the least-disruptive slot within your schedule, even with minor environmental tradeoffs."
+        )
 
-    # Case 2A: Fallback is NOT opted-in by user
+    best_overall["task_name"] = task_name
+    best_overall["is_weather_optimal"] = True
+    best_overall["timing_status"] = "optimal_weather_alternative"
+    best_overall["outcome_label"] = "Optimal weather alternative"
+    top_alt_viol = best_overall["preference_violations"][0] if best_overall["preference_violations"] else None
+    alt_viol_bullet = f"Exceeds {top_alt_viol['label']} preference by {top_alt_viol['excess']} {top_alt_viol['unit']}." if top_alt_viol else "Meets environmental preferences."
+    best_overall["why_this_alternative"] = [
+        f"Lowest outdoor discomfort score ({best_overall['experimental_product_score']}) across the 24-hour forecast.",
+        f"Apparent temperature: {best_overall['mean_apparent_temperature']}°C · PM2.5: {best_overall['mean_pm25']} µg/m³.",
+        "Best option if you have flexible timing outside your requested schedule."
+    ]
+    best_overall["chosen_rationale"] = (
+        f"The cleanest and most comfortable atmospheric window across the entire day for users with flexible timing."
+    )
+
+    has_dual_rec = bool(best_schedule and best_overall and best_schedule["start_time"] != best_overall["start_time"])
+
+    # Case 2A: Fallback is NOT opted-in by user (standard test assertions preserved)
     if not enable_fallback:
         return {
             "status": "no_suitable_slots",
@@ -675,8 +797,11 @@ def find_optimal_schedule(
             "description": f"No continuous {duration_desc} period within your selected time range met every preference.",
             "fallback_enabled": False,
             "alternatives_available": True,
-            "total_candidate_blocks": len(sorted_alts),
+            "total_candidate_blocks": len(candidate_blocks),
             "decision_timeline": decision_timeline,
+            "schedule_window": best_schedule,
+            "weather_alternative": best_overall,
+            "has_dual_recommendation": has_dual_rec,
             "general_exposure_reduction_options": GENERAL_EXPOSURE_REDUCTION_OPTIONS,
             "official_guidance": OFFICIAL_GUIDANCE,
             "model_caveat": MODEL_CAVEAT,
@@ -685,39 +810,37 @@ def find_optimal_schedule(
         }
 
     # Case 2B: Fallback IS explicitly opted-in ("OUTSIDE YOUR PREFERENCES")
-    least_adverse["outcome_type"] = OUTCOME_BEST_ALTERNATIVE
-    least_adverse["outcome_label"] = LABEL_BEST_ALTERNATIVE
+    primary_alt = best_schedule if best_schedule else best_overall
+    primary_alt["outcome_type"] = OUTCOME_BEST_ALTERNATIVE
+    primary_alt["outcome_label"] = LABEL_BEST_ALTERNATIVE
     
     # Tag hours in decision timeline
     for item in decision_timeline:
-        if least_adverse["start_time"] <= item["time"] < least_adverse["end_time"]:
+        if primary_alt["start_time"] <= item["time"] < primary_alt["end_time"]:
             item["is_selected_block"] = True
 
-    # Deterministic explainability bullets for alternative
-    top_violation = least_adverse["preference_violations"][0] if least_adverse["preference_violations"] else None
+    top_violation = primary_alt["preference_violations"][0] if primary_alt["preference_violations"] else None
     violation_bullet = (
         f"It exceeds your {top_violation['label']} preference by {top_violation['excess']} {top_violation['unit']}."
         if top_violation else "It falls outside your preferred environmental thresholds."
     )
     
     why_alt_bullets = [
-        "No slot met every preference today.",
-        "This block has the lowest product ranking among comparable forecast blocks.",
+        "No slot met every preference in this time window.",
+        "This block has the lowest discomfort ranking among comparable forecast blocks.",
         violation_bullet
     ]
-    least_adverse["why_this_alternative"] = why_alt_bullets
+    primary_alt["why_this_alternative"] = why_alt_bullets
     
-    # User requested exact copy:
-    violation_detail = ""
-    if top_violation:
-        violation_detail = f"Exceeds {top_violation['label']} preference\n{top_violation['description']}"
-    else:
-        violation_detail = "Exceeds stated preferences"
+    violation_detail = (
+        f"Exceeds {top_violation['label']} preference\n{top_violation['description']}"
+        if top_violation else "Exceeds stated preferences"
+    )
 
-    least_adverse["fact_string"] = (
+    primary_alt["fact_string"] = (
         f"OUTSIDE YOUR PREFERENCES\n\n"
         f"Lowest-ranked available window:\n"
-        f"{least_adverse['display_window']}\n\n"
+        f"{primary_alt['display_window']}\n\n"
         f"{violation_detail}\n\n"
         f"{MODEL_CAVEAT}"
     )
@@ -728,9 +851,12 @@ def find_optimal_schedule(
         "outcome_label": LABEL_BEST_ALTERNATIVE,
         "message": MSG_NO_SLOTS_MEET_PREFERENCES,
         "fallback_enabled": True,
-        "alternative": least_adverse,
+        "alternative": primary_alt,
+        "schedule_window": best_schedule,
+        "weather_alternative": best_overall,
+        "has_dual_recommendation": has_dual_rec,
         "decision_timeline": decision_timeline,
-        "total_candidate_blocks": len(sorted_alts),
+        "total_candidate_blocks": len(candidate_blocks),
         "general_exposure_reduction_options": GENERAL_EXPOSURE_REDUCTION_OPTIONS,
         "official_guidance": OFFICIAL_GUIDANCE,
         "model_caveat": MODEL_CAVEAT,

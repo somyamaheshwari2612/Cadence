@@ -76,7 +76,7 @@ export function ActivityForm({
   const currentPreset = INDIA_ACTIVITY_PRESETS[preferences.activity];
 
   return (
-    <section className="activity-planner" aria-labelledby="activity-heading">
+    <section className="panel activity-planner" aria-labelledby="activity-heading">
       <div className="heading-row">
         <h2 className="section-heading" id="activity-heading">
           <Footprints /> Make time for outside <span className="heading-dash" />
@@ -194,14 +194,14 @@ export function ActivityForm({
           <div className="planner-field">
             <label htmlFor="air-preference" className="flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                <Wind className="w-3.5 h-3.5" /> Air particles
+                <Wind className="w-3.5 h-3.5" /> Air Quality
               </span>
               <CadenceInfoTooltip type="air-particles" />
             </label>
             <div className="preference-value">
               <strong>
                 {preferences.maxPm25}
-                <small> µg/m³ PM2.5</small>
+                <small> AQI</small>
               </strong>
               <span>maximum</span>
             </div>
@@ -215,7 +215,7 @@ export function ActivityForm({
               onChange={e => update('maxPm25', Number(e.target.value))}
             />
             <span className="text-[10px] text-[var(--muted-foreground)] block mt-1">
-              CPCB band: {getIndiaCpcbCategory(preferences.maxPm25).category} (~{getIndiaCpcbCategory(preferences.maxPm25).subindex}) · modeled forecast
+              Quality: {getIndiaCpcbCategory(preferences.maxPm25).category} ({getIndiaCpcbCategory(preferences.maxPm25).subindex} AQI)
             </span>
           </div>
           <div className="planner-field rain-field">

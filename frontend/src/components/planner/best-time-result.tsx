@@ -86,18 +86,18 @@ export function BestTimeResult({
               <div className="result-metric-card">
                 <div className="flex items-center gap-1.5 justify-center mb-0.5">
                   <Wind className="w-3.5 h-3.5 text-[var(--primary)]" />
-                  <span className="font-medium text-xs">Air particles</span>
+                  <span className="font-medium text-xs">Air Quality</span>
                   <CadenceInfoTooltip type="air-particles" />
                 </div>
                 <strong className="text-xl">
                   {block.pm25}
-                  <small className="text-xs font-normal text-[var(--muted-foreground)]"> µg/m³ PM2.5</small>
+                  <small className="text-xs font-normal text-[var(--muted-foreground)]"> AQI</small>
                 </strong>
                 <span className="text-[11px] text-[var(--muted-foreground)] block mt-0.5">
                   {alternative
                     ? 'Above your preference'
                     : block.cpcbCategory
-                    ? `CPCB: ${block.cpcbCategory}`
+                    ? `Air: ${block.cpcbCategory}`
                     : 'Lower than later today'}
                 </span>
               </div>
@@ -151,9 +151,9 @@ export function BestTimeResult({
                   ))
                 ) : block.exceeded ? (
                   block.exceeded.map(name => {
-                    const aliasLabel = name === 'PM2.5' ? 'Air particles' : name === 'Apparent temperature' ? 'Feels like' : 'Chance of rain';
-                    const measured = name === 'PM2.5' ? `${block.pm25} µg/m³ PM2.5` : name === 'Apparent temperature' ? `${block.apparent}°C` : `${block.rain}%`;
-                    const limit = name === 'PM2.5' ? `${preferences.maxPm25} µg/m³ PM2.5` : name === 'Apparent temperature' ? `${preferences.maxTemperature}°C` : preferences.rainAcceptable ? `${preferences.maxRain}%` : '0%';
+                    const aliasLabel = name === 'PM2.5' ? 'Air Quality' : name === 'Apparent temperature' ? 'Feels like' : 'Chance of rain';
+                    const measured = name === 'PM2.5' ? `${block.pm25} AQI` : name === 'Apparent temperature' ? `${block.apparent}°C` : `${block.rain}%`;
+                    const limit = name === 'PM2.5' ? `${preferences.maxPm25} AQI` : name === 'Apparent temperature' ? `${preferences.maxTemperature}°C` : preferences.rainAcceptable ? `${preferences.maxRain}%` : '0%';
                     return (
                       <p key={name}>
                         <TriangleAlert /> Exceeds {aliasLabel} preference <span>Forecast: {measured} · Your preference: {limit}</span>
@@ -193,9 +193,9 @@ export function BestTimeResult({
                     <li>Fits your requested {preferences.duration}-minute duration.</li>
                     <li>Inside your selected availability: {formatTime(preferences.start)}–{formatTime(preferences.end)}.</li>
                     <li>Has the lowest outdoor comfort score {alternative ? 'among comparable blocks' : 'among blocks that meet every preference'}.</li>
-                    {!alternative && <li>Air particles (PM2.5), feels-like temperature, and chance of rain meet your stated preferences throughout the block.</li>}
+                    {!alternative && <li>Air Quality (AQI), feels-like temperature, and chance of rain meet your stated preferences throughout the block.</li>}
                     {alternative && block.exceeded.map(name => {
-                      const aliasLabel = name === 'PM2.5' ? 'Air particles' : name === 'Apparent temperature' ? 'Feels like' : 'Chance of rain';
+                      const aliasLabel = name === 'PM2.5' ? 'Air Quality' : name === 'Apparent temperature' ? 'Feels like' : 'Chance of rain';
                       return <li key={name}>{aliasLabel} exceeds your stated preference.</li>;
                     })}
                   </>
