@@ -14,6 +14,7 @@ from services.llm_engine import verify_image, RateLimitExceeded
 import base64
 import json
 import io
+import requests
 
 app = Flask(__name__)
 CORS(app)
@@ -121,6 +122,29 @@ def health_check():
         "service": "cadence-backend",
         "version": "1.0.0"
     }), 200
+
+
+@app.route('/api/debug-weather', methods=['GET'])
+def debug_weather():
+    """Diagnostic endpoint to inspect Open-Meteo calls directly on Render."""
+    lat = request.args.get('lat', 34.1526)
+    lon = request.args.get('lon', 77.5771)
+    weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,apparent_temperature&timezone=auto"
+    headers = {"User-Agent": "CadenceApp/1.0 (https://cadence-sm.vercel.app; somya@cadence.app)"}
+    try:
+        r = requests.get(weather_url, headers=headers, timeout=10)
+        return jsonify({
+            "status_code": r.status_code,
+            "response_snippet": r.text[:300],
+            "headers": dict(r.headers)
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
 
 
 @app.route('/api/geocode', methods=['POST', 'OPTIONS'])

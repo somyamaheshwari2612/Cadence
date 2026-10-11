@@ -30,12 +30,11 @@ export function getBackendCandidates(): string[] {
     }
 
     // In production deployment (e.g. cadence-sm.vercel.app):
-    // Only use same-origin relative proxy (or VITE_BACKEND_URL if configured).
-    // Never attempt http://127.0.0.1 or http://localhost from a public HTTPS website.
-    return [""];
+    // First try same-origin relative proxy, then fall back to Render directly
+    return ["", "https://cadence-backend-fuc9.onrender.com"];
   }
 
-  return ["http://127.0.0.1:5000", "http://localhost:5000"];
+  return ["http://127.0.0.1:5000", "http://localhost:5000", "https://cadence-backend-fuc9.onrender.com"];
 }
 
 export async function fetchWithBackendFallback(endpoint: string, init?: RequestInit): Promise<Response> {

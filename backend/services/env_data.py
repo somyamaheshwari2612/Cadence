@@ -13,9 +13,13 @@ def _request_with_retry(url, max_retries=MAX_RETRIES, timeout=REQUEST_TIMEOUT):
     Only retries on transient (5xx) errors. Returns parsed JSON or raises.
     """
     last_error = None
+    headers = {
+        "User-Agent": "CadenceEnvironmentalIntelligence/1.0 (https://cadence-sm.vercel.app; support@cadence.app)",
+        "Accept": "application/json"
+    }
     for attempt in range(max_retries + 1):
         try:
-            response = requests.get(url, timeout=timeout)
+            response = requests.get(url, headers=headers, timeout=timeout)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.Timeout:
@@ -170,15 +174,23 @@ def _generate_modeled_fallback(latitude, longitude, retrieval_dt):
     """Generates continuous modeled baseline hourly data if upstream is overloaded."""
     hours = []
     base_date = retrieval_dt.replace(minute=0, second=0, microsecond=0)
+    
+    # Context-aware temperature baseline based on latitude
+    # High altitude / northern regions (like Ladakh, lat > 32) should not have 28°C baseline!
+    if latitude >= 32.0:
+        base_temp = 9.0
+    elif latitude >= 26.0:
+        base_temp = 22.0
+    else:
+        base_temp = 27.0
+
     for i in range(48):
         dt = base_date + timedelta(hours=i)
         hour = dt.hour
-        # Diurnal temperature cycle: coolest at 6 AM (22°C), peak at 3 PM (34°C)
-        temp_cycle = 28.0 + 6.0 * math.sin((hour - 9) * math.pi / 12)
-        apparent = round(temp_cycle + 2.0, 1)
-        # Particulate cycle: higher in morning/evening, lower in afternoon
-        pm25_cycle = round(52.0 + 16.0 * math.cos((hour - 8) * math.pi / 12), 1)
-        aqi_cycle = min(200, int(pm25_cycle * 1.5))
+        temp_cycle = base_temp + 5.0 * math.sin((hour - 9) * math.pi / 12)
+        apparent = round(temp_cycle - 1.5 if base_temp < 15 else temp_cycle + 2.0, 1)
+        pm25_cycle = round(35.0 + 10.0 * math.cos((hour - 8) * math.pi / 12), 1)
+        aqi_cycle = min(200, int(pm25_cycle * 1.2))
         precip = 5 if hour < 14 else 15
 
         hours.append({
@@ -214,19 +226,19 @@ def _generate_modeled_fallback(latitude, longitude, retrieval_dt):
     hour_now = (retrieval_dt.hour + 5) % 24
     fallback_is_day = 1 if (6 <= hour_now < 18) else 0
     fallback_current = {
-        "temperature": 28.0,
-        "apparent_temperature": 30.0,
+        "temperature": round(base_temp + 2.0, 1) if fallback_is_day else round(base_temp - 2.0, 1),
+        "apparent_temperature": round(base_temp, 1) if fallback_is_day else round(base_temp - 3.5, 1),
         "weather_code": 1,
         "condition": "Mainly Clear",
-        "humidity": 65,
+        "humidity": 45 if base_temp < 15 else 65,
         "wind_speed": 10.0,
-        "wind_direction": "ESE",
+        "wind_direction": "NNW" if latitude > 30 else "ESE",
         "precipitation": 0.0,
-        "pm2_5": 50.0,
+        "pm2_5": 30.0 if latitude > 30 else 50.0,
         "pressure": 1012,
         "pressure_status": "Steady",
-        "sunrise": "06:00 AM",
-        "sunset": "06:30 PM",
+        "sunrise": "06:20 AM",
+        "sunset": "06:05 PM",
         "is_day": fallback_is_day == 1,
         "is_night": fallback_is_day == 0,
     }
@@ -243,34 +255,53 @@ def fetch_environmental_data(latitude, longitude, cached_at_utc=None):
     retrieval_iso = retrieval_dt.isoformat()
     cache_key = (round(latitude, 2), round(longitude, 2))
     
+    # 1. Fetch Weather Data (both current and hourly)
+    weather_url = (
+        f"https://api.open-meteo.com/v1/forecast?"
+        f"latitude={latitude}&longitude={longitude}&"
+        f"current=temperature_2m,apparent_temperature,precipitation,weather_code,relative_humidity_2m,wind_speed_10m,wind_direction_10m,is_day,surface_pressure&"
+        f"hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,relative_humidity_2m,wind_speed_10m,wind_direction_10m,surface_pressure&"
+        f"daily=sunrise,sunset&"
+        f"timezone=auto"
+    )
+    
     try:
-        # 1. Fetch Weather Data (both current and hourly)
-        weather_url = (
-            f"https://api.open-meteo.com/v1/forecast?"
-            f"latitude={latitude}&longitude={longitude}&"
-            f"current=temperature_2m,apparent_temperature,precipitation,weather_code,relative_humidity_2m,wind_speed_10m,wind_direction_10m,is_day,surface_pressure&"
-            f"hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,relative_humidity_2m,wind_speed_10m,wind_direction_10m,surface_pressure&"
-            f"daily=sunrise,sunset&"
-            f"timezone=auto"
-        )
         weather_data = _request_with_retry(weather_url)
-
-        # 2. Fetch Air Quality Data (both current and hourly)
-        aqi_url = (
-            f"https://air-quality-api.open-meteo.com/v1/air-quality?"
-            f"latitude={latitude}&longitude={longitude}&"
-            f"current=pm2_5,us_aqi&"
-            f"hourly=pm2_5,us_aqi&"
-            f"timezone=auto"
-        )
-        aqi_data = _request_with_retry(aqi_url)
-    except (ConnectionError, ValueError, Exception) as e:
-        # If upstream rate-limits or is overloaded (HTTP 503), check cache
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] Open-Meteo weather fetch failed for ({latitude}, {longitude}): {e}", flush=True)
+        traceback.print_exc()
         if cache_key in _ENV_CACHE:
             cached = _ENV_CACHE[cache_key]
             cached["metadata"]["is_stale"] = False
             return cached
         return _generate_modeled_fallback(latitude, longitude, retrieval_dt)
+
+    # 2. Fetch Air Quality Data separately so AQI failure doesn't prevent real weather
+    aqi_url = (
+        f"https://air-quality-api.open-meteo.com/v1/air-quality?"
+        f"latitude={latitude}&longitude={longitude}&"
+        f"current=pm2_5,us_aqi&"
+        f"hourly=pm2_5,us_aqi&"
+        f"timezone=auto"
+    )
+    try:
+        aqi_data = _request_with_retry(aqi_url)
+    except Exception as e:
+        print(f"[WARN] Open-Meteo AQI fetch failed for ({latitude}, {longitude}): {e}. Using baseline AQI.", flush=True)
+        w_h_times = weather_data.get("hourly", {}).get("time", [])
+        aqi_data = {
+            "hourly": {
+                "time": w_h_times,
+                "pm2_5": [30.0] * len(w_h_times),
+                "us_aqi": [45] * len(w_h_times)
+            },
+            "current": {
+                "pm2_5": 30.0,
+                "us_aqi": 45
+            },
+            "utc_offset_seconds": weather_data.get("utc_offset_seconds", 0)
+        }
     
     # 3. Validate response shapes
     w_hourly = weather_data.get("hourly", {})
