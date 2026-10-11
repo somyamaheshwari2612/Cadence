@@ -45,12 +45,9 @@ Cadence is a modern exposure-routing and environmental intelligence application 
 
 ```
 Cadence/
-├── api/                           # Vercel serverless entry point
-│   ├── app.py                     # Serverless WSGI adapter forwarding to backend.app
-│   └── requirements.txt           # Python dependencies for Vercel functions
-│
-├── backend/                       # Python Flask atmospheric API
-│   ├── app.py                     # Core Flask API & AWS Lambda WSGI handler
+├── app.py                         # Root entry point forwarding to backend.app
+├── backend/                       # Python Flask atmospheric API (Render Web Service)
+│   ├── app.py                     # Core Flask API & health check endpoints
 │   ├── services/                  # Business logic
 │   │   ├── cpcb_naqi.py           # Official CPCB NAQI calculation & breakpoints
 │   │   ├── scheduler.py           # India-Aware exposure scheduling engine
@@ -61,7 +58,7 @@ Cadence/
 │   ├── data/                      # Indian cities dataset
 │   └── requirements.txt
 │
-├── frontend/                      # Living Emerald Dashboard (React + Vite + TanStack Router)
+├── frontend/                      # Living Emerald Dashboard (Vercel Frontend)
 │   ├── src/
 │   │   ├── assets/                # Atmospheric celestial artworks & moon photography
 │   │   ├── components/            # UI panels (WeatherDashboard, LocationSearchPopover, Planner)
@@ -82,7 +79,6 @@ Cadence/
 │
 ├── render.yaml                    # Render Blueprint specification for Backend Web Service
 ├── template.yaml                  # Open-source AWS SAM template (Serverless Application Model)
-├── vercel.json                    # Vercel deployment configuration
 ├── requirements.txt               # Root Python dependencies for cloud runtimes
 └── README.md                      # This file
 ```
