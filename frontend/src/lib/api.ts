@@ -9,19 +9,30 @@ export function getBackendCandidates(): string[] {
   }
 
   if (typeof window !== "undefined" && window.location) {
-    const protocol = window.location.protocol || "http:";
     const hostname = window.location.hostname || "localhost";
-    const directHost = `${protocol}//${hostname}:5000`;
+    const isLocalhost =
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("10.") ||
+      hostname.endsWith(".local");
 
-    // 1. Same-origin proxy via server.ts (:3001) - works on mobile, desktop, through firewalls
-    // 2. Direct port 5000 on host (e.g. http://10.177.120.109:5000)
-    // 3. Loopback 5000 fallbacks
-    return [
-      "",
-      directHost,
-      "http://127.0.0.1:5000",
-      "http://localhost:5000",
-    ];
+    // In local development, try direct port 5000 and loopback fallbacks if proxy fails
+    if (isLocalhost) {
+      const protocol = window.location.protocol || "http:";
+      const directHost = `${protocol}//${hostname}:5000`;
+      return [
+        "", // Relative same-origin /api/ proxy
+        directHost,
+        "http://127.0.0.1:5000",
+        "http://localhost:5000",
+      ];
+    }
+
+    // In production deployment (e.g. cadence-sm.vercel.app):
+    // Only use same-origin relative proxy (or VITE_BACKEND_URL if configured).
+    // Never attempt http://127.0.0.1 or http://localhost from a public HTTPS website.
+    return [""];
   }
 
   return ["http://127.0.0.1:5000", "http://localhost:5000"];
