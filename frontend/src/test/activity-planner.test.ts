@@ -12,4 +12,22 @@ describe('Activity window preferences',()=>{
  it('rejects rain when rain is not acceptable',()=>{expect(compareWindows([hour(18)],{...initialPreferences,start:1080,end:1140,rainAcceptable:false})).toMatchObject({state:'no-slot',alternative:{exceeded:['Rain probability']}});});
  it('retains temperature violations in the alternative',()=>{expect(compareWindows([hour(18,42,35,10)],{...initialPreferences,maxTemperature:32,start:1080,end:1140})).toMatchObject({state:'no-slot',alternative:{exceeded:['Apparent temperature']}});});
  it('excludes suspect data from comparisons',()=>{expect(compareWindows([{...hour(18),status:'suspect'}],{...initialPreferences,start:1080,end:1140})).toEqual({state:'incomplete'});});
+ it('returns past-window state when selected availability window has already elapsed today',()=>{
+  expect(compareWindows(mockForecast,{...initialPreferences,start:240,end:450,duration:60},696)).toMatchObject({
+    state:'past-window'
+  });
+ });
+ it('returns past-window state when remaining time before window end is shorter than duration',()=>{
+  expect(compareWindows(mockForecast,{...initialPreferences,start:660,end:720,duration:60},696)).toMatchObject({
+    state:'past-window'
+  });
+ });
+ it('only recommends upcoming slots when current time is partially into available window',()=>{
+  const res = compareWindows(mockForecast,{...initialPreferences,start:660,end:840,duration:60},696);
+  if (res.state === 'qualified') {
+    expect(res.block.start).toBeGreaterThanOrEqual(696);
+  } else if (res.state === 'no-slot' && res.scheduleWindow) {
+    expect(res.scheduleWindow.start).toBeGreaterThanOrEqual(696);
+  }
+ });
 });

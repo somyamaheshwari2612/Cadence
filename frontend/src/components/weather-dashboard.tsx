@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   MapPin,
   Sun,
@@ -26,6 +26,7 @@ import { WeatherSelect } from '@/components/weather-select';
 import { LocationSearchPopover } from '@/components/location-search-popover';
 import {
   weatherArtwork,
+  sunArtwork,
   getWeatherArtworkForCondition,
   getWeatherPoem,
   parseTimeStringToMinutes,
@@ -50,9 +51,14 @@ export interface WeatherDashboardData {
   updatedTime: string;
   sunrise: string;
   sunset: string;
+  tomorrowSunrise?: string;
+  tomorrowSunset?: string;
   moonrise: string;
   moonset: string;
+  tomorrowMoonrise?: string;
+  tomorrowMoonset?: string;
   moonPhaseText: string;
+  tomorrowMoonPhaseText?: string;
   isNight?: boolean;
   isDay?: boolean;
   timezone?: string;
@@ -82,6 +88,8 @@ export interface WeatherDashboardData {
     label: string;
     temp: number;
     icon: 'sunny' | 'moon' | 'partly' | 'partly-moon' | 'cloudy' | 'rainy' | 'snowy' | 'windy' | 'thunderstorm';
+    dayLabel?: string;
+    isDayBoundary?: boolean;
   }>;
 }
 
@@ -296,44 +304,76 @@ export function SunMoonCard({
   data?: Partial<WeatherDashboardData>;
   className?: string;
 }) {
-  const [period, setPeriod] = useState('Today');
-  const sunrise = data?.sunrise ?? '06:22 AM';
-  const sunset = data?.sunset ?? '05:59 PM';
-  const moonrise = data?.moonrise ?? '02:17 AM';
-  const moonset = data?.moonset ?? '03:48 PM';
+  const [period, setPeriod] = useState<'Today' | 'Tomorrow'>('Today');
 
-  const solarStage = getSolarStage({
-    sunrise,
-    sunset,
-    timezone: data?.timezone,
-    utcOffsetSeconds: data?.utcOffsetSeconds,
-  });
+  const shiftTimeStr = (timeStr?: string, minutesShift: number = 0, fallback: string = '06:00 AM'): string => {
+    if (!timeStr) return fallback;
+    const mins = parseTimeStringToMinutes(timeStr);
+    if (mins === null) return timeStr;
+    const shifted = (mins + minutesShift + 1440) % 1440;
+    const h = Math.floor(shifted / 60) % 24;
+    const m = shifted % 60;
+    const ampm = h < 12 ? 'AM' : 'PM';
+    const h12 = h % 12 || 12;
+    return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+  };
+
+  const isTomorrow = period === 'Tomorrow';
+
+  const todaySunrise = data?.sunrise ?? '06:22 AM';
+  const todaySunset = data?.sunset ?? '05:59 PM';
+  const todayMoonrise = data?.moonrise ?? '02:17 AM';
+  const todayMoonset = data?.moonset ?? '03:48 PM';
+  const todayMoonPhase = data?.moonPhaseText ?? 'Waning Gibbous\n(72%)';
+
+  const tomorrowSunrise = data?.tomorrowSunrise || shiftTimeStr(todaySunrise, 1, '06:23 AM');
+  const tomorrowSunset = data?.tomorrowSunset || shiftTimeStr(todaySunset, -1, '05:58 PM');
+  const tomorrowMoonrise = data?.tomorrowMoonrise || shiftTimeStr(todayMoonrise, 51, '03:08 AM');
+  const tomorrowMoonset = data?.tomorrowMoonset || shiftTimeStr(todayMoonset, 50, '04:38 PM');
+  const tomorrowMoonPhase = data?.tomorrowMoonPhaseText || 'Waning Gibbous\n(63%)';
+
+  const displaySunrise = isTomorrow ? tomorrowSunrise : todaySunrise;
+  const displaySunset = isTomorrow ? tomorrowSunset : todaySunset;
+  const displayMoonrise = isTomorrow ? tomorrowMoonrise : todayMoonrise;
+  const displayMoonset = isTomorrow ? tomorrowMoonset : todayMoonset;
+  const displayMoonPhase = isTomorrow ? tomorrowMoonPhase : todayMoonPhase;
+
+  const solarStage = isTomorrow
+    ? { key: 'dawn' as const, src: sunArtwork.dawn.src, label: "Tomorrow's Sunrise", detail: 'Golden Horizon' }
+    : getSolarStage({
+        sunrise: todaySunrise,
+        sunset: todaySunset,
+        timezone: data?.timezone,
+        utcOffsetSeconds: data?.utcOffsetSeconds,
+      });
 
   const activeMoonImage = (() => {
-    const phaseText = (data?.moonPhaseText || '').toLowerCase();
+    const phaseText = displayMoonPhase.toLowerCase();
     if (phaseText.includes('full')) return weatherArtwork.moonFull.src;
     if (phaseText.includes('new') || phaseText.includes('no moon')) return weatherArtwork.moonNoNight.src;
     if (phaseText.includes('cloud')) return weatherArtwork.moonCloudy.src;
     return weatherArtwork.moonClear.src;
   })();
 
-  const rawMoonText = data?.moonPhaseText || 'Waning Gibbous\n(72%)';
-  const moonLines = rawMoonText.split('\n');
+  const moonLines = displayMoonPhase.split('\n');
   const moonPhaseName = moonLines[0] || 'Waning Gibbous';
-  const moonPhaseDetail = moonLines[1] || '(72%)';
+  const moonPhaseDetail = moonLines[1] || (isTomorrow ? '(63%)' : '(72%)');
 
   return (
     <section className={`panel celestial ${className}`} aria-label="Sun and Moon">
       <div className="heading-row">
         <h2 className="section-heading">
           <Sun aria-hidden="true" /> Sun &amp; Moon
+          <span className="text-xs text-[var(--muted-foreground)] font-normal ml-2">
+            · {period}
+          </span>
         </h2>
         <WeatherSelect
           label="Celestial period"
           variant="period"
           value={period}
           options={['Today', 'Tomorrow']}
-          onValueChange={setPeriod}
+          onValueChange={v => setPeriod(v as 'Today' | 'Tomorrow')}
         />
       </div>
 
@@ -346,11 +386,11 @@ export function SunMoonCard({
             </div>
             <div className="event">
               <small>Sunrise</small>
-              <strong>{sunrise}</strong>
+              <strong>{displaySunrise}</strong>
             </div>
             <div className="event">
               <small>Sunset</small>
-              <strong>{sunset}</strong>
+              <strong>{displaySunset}</strong>
             </div>
           </div>
           <div className="celestial-display sun-display">
@@ -371,11 +411,11 @@ export function SunMoonCard({
             </div>
             <div className="event">
               <small>Moonrise</small>
-              <strong>{moonrise}</strong>
+              <strong>{displayMoonrise}</strong>
             </div>
             <div className="event">
               <small>Moonset</small>
-              <strong>{moonset}</strong>
+              <strong>{displayMoonset}</strong>
             </div>
           </div>
           <div className="celestial-display moon-display">
@@ -446,7 +486,7 @@ export function EnvironmentBentoGrid({
     <section className={`panel environment ${className}`} aria-label="Environmental telemetry">
       <div className="heading-row">
         <h2 className="section-heading">
-          <Wind aria-hidden="true" /> Environment <span className="heading-dash" />
+          <Wind aria-hidden="true" /> Environment
         </h2>
         <span className="text-xs text-[var(--muted-foreground)]">Live telemetry context</span>
       </div>
@@ -701,81 +741,159 @@ export function TodaysForecastCard({
   data?: Partial<WeatherDashboardData>;
   className?: string;
 }) {
-  const [forecastPeriod, setForecastPeriod] = useState('Next 24 hours');
+  const [forecastPeriod, setForecastPeriod] = useState<'Next 24 hours' | 'Next 48 hours'>('Next 24 hours');
+  const is48h = forecastPeriod === 'Next 48 hours';
 
-  const hourlyPoints = data?.hourly ?? [
-    { label: 'Now', temp: 28, icon: 'partly' },
-    { label: '12 PM', temp: 29, icon: 'partly' },
-    { label: '2 PM', temp: 31, icon: 'sunny' },
-    { label: '4 PM', temp: 30, icon: 'sunny' },
-    { label: '6 PM', temp: 27, icon: 'partly' },
-    { label: '8 PM', temp: 24, icon: 'cloudy' },
-    { label: '10 PM', temp: 22, icon: 'cloudy' },
-    { label: '12 AM', temp: 21, icon: 'cloudy' },
-    { label: '2 AM', temp: 20, icon: 'cloudy' },
-    { label: '4 AM', temp: 19, icon: 'cloudy' },
-    { label: '6 AM', temp: 20, icon: 'partly' },
-  ];
+  // Realistic diurnal curve fallback for up to 48 hours
+  const defaultHourlyPoints = useMemo(() => {
+    const baseTemps = [28, 29, 31, 33, 32, 30, 27, 25, 23, 22, 21, 20, 21, 23, 26, 29, 32, 33, 31, 29, 27, 25, 24, 23];
+    const points: WeatherDashboardData['hourly'] = [];
+    const nowHour = 12; // 12 PM
+    for (let i = 0; i < 48; i++) {
+      const h = (nowHour + i) % 24;
+      const h12 = h % 12 || 12;
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const label = i === 0 ? 'Now' : `${h12} ${ampm}`;
+      const temp = baseTemps[i % 24] + (i >= 24 ? 1 : 0);
+      const isNight = h < 6 || h >= 18;
+      const icon = isNight ? (i % 3 === 0 ? 'partly-moon' : 'moon') : (temp > 30 ? 'sunny' : 'partly');
+      const isDayBoundary = h === 0 && i > 0;
+      const dayLabel = isDayBoundary ? (i < 28 ? 'Tomorrow' : 'Day 3') : undefined;
+      points.push({ label, temp, icon: icon as any, dayLabel, isDayBoundary });
+    }
+    return points;
+  }, []);
+
+  const allPoints = data?.hourly && data.hourly.length > 0 ? data.hourly : defaultHourlyPoints;
+  const activePoints = useMemo(() => {
+    return is48h ? allPoints.slice(0, 48) : allPoints.slice(0, 24);
+  }, [allPoints, is48h]);
+
+  const colWidth = 68;
+  const totalWidth = Math.max(activePoints.length * colWidth, 740);
+
+  const { splinePath, pointCoords } = useMemo(() => {
+    if (activePoints.length === 0) return { splinePath: '', pointCoords: [] };
+    const temps = activePoints.map(p => p.temp);
+    const minTemp = Math.min(...temps);
+    const maxTemp = Math.max(...temps);
+    const tempRange = Math.max(1, maxTemp - minTemp);
+
+    const coords = activePoints.map((pt, i) => {
+      const cx = i * colWidth + colWidth / 2;
+      const tNorm = (pt.temp - minTemp) / tempRange;
+      // High temp -> cy = 6 (near top of 25px svg), Low temp -> cy = 18
+      const cy = Math.round(18 - tNorm * 12);
+      return { cx, cy, yOffset: cy - 12 };
+    });
+
+    // Catmull-Rom to Cubic Bezier conversion for smooth spline
+    let d = `M ${coords[0].cx} ${coords[0].cy}`;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const p0 = coords[Math.max(0, i - 1)];
+      const p1 = coords[i];
+      const p2 = coords[i + 1];
+      const p3 = coords[Math.min(coords.length - 1, i + 2)];
+
+      const cp1x = p1.cx + (p2.cx - p0.cx) / 6;
+      const cp1y = p1.cy + (p2.cy - p0.cy) / 6;
+      const cp2x = p2.cx - (p3.cx - p1.cx) / 6;
+      const cp2y = p2.cy - (p3.cy - p1.cy) / 6;
+
+      d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.cx.toFixed(1)} ${p2.cy.toFixed(1)}`;
+    }
+
+    return { splinePath: d, pointCoords: coords };
+  }, [activePoints, colWidth]);
 
   return (
     <section className={`panel forecast ${className}`} aria-label="Today's Forecast">
       <div className="heading-row">
         <h2 className="section-heading">
-          <Calendar aria-hidden="true" /> Today&apos;s Forecast <span className="heading-dash" />
+          <Calendar aria-hidden="true" /> {is48h ? '48-Hour Extended Forecast' : "Today's Forecast"}
         </h2>
         <WeatherSelect
           label="Forecast coverage"
           variant="period"
           value={forecastPeriod}
           options={['Next 24 hours', 'Next 48 hours']}
-          onValueChange={setForecastPeriod}
+          onValueChange={v => setForecastPeriod(v as 'Next 24 hours' | 'Next 48 hours')}
         />
       </div>
 
       <div className="forecast-body">
         {/* Connected SVG Spline Temperature Curve with Gradient */}
-        <svg className="forecast-line" viewBox="0 0 740 25" preserveAspectRatio="none" aria-hidden="true">
+        <svg
+          className="forecast-line"
+          viewBox={`0 0 ${totalWidth} 25`}
+          style={{ width: `${totalWidth}px` }}
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
           <defs>
             <linearGradient id="forecast-gradient" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="var(--sunlight)" />
-              <stop offset="30%" stopColor="var(--sunlight)" />
+              <stop offset="25%" stopColor="var(--sunlight)" />
               <stop offset="60%" stopColor="var(--primary)" />
               <stop offset="100%" stopColor="var(--mist)" />
             </linearGradient>
           </defs>
-          <path d="M 10 12 C 70 8, 140 2, 210 5 C 280 8, 350 14, 420 18 C 490 20, 560 22, 630 23 C 680 23, 710 21, 730 20" />
+          <path d={splinePath} />
         </svg>
 
-        {/* 11 Hourly Columns */}
-        <div className="forecast-hours">
-          {hourlyPoints.map((pt, i) => (
-            <div key={i} className="forecast-hour">
-              <div className={`forecast-icon ${pt.icon}`}>
-                {pt.icon === 'sunny' ? (
-                  <Sun aria-hidden="true" />
-                ) : pt.icon === 'moon' ? (
-                  <Moon aria-hidden="true" />
-                ) : pt.icon === 'partly-moon' ? (
-                  <CloudMoon aria-hidden="true" />
-                ) : pt.icon === 'partly' ? (
-                  <CloudSun aria-hidden="true" />
-                ) : pt.icon === 'rainy' ? (
-                  <CloudRain aria-hidden="true" />
-                ) : pt.icon === 'snowy' ? (
-                  <Snowflake aria-hidden="true" />
-                ) : pt.icon === 'windy' ? (
-                  <Wind aria-hidden="true" />
-                ) : pt.icon === 'thunderstorm' ? (
-                  <CloudLightning aria-hidden="true" />
-                ) : (
-                  <Cloud aria-hidden="true" />
+        {/* Dynamic Hourly Columns */}
+        <div className="forecast-hours" style={{ width: `${totalWidth}px` }}>
+          {activePoints.map((pt, i) => {
+            const yOffset = pointCoords[i]?.yOffset ?? 0;
+            const isWarm = pt.temp >= 30;
+            return (
+              <div
+                key={i}
+                className={`forecast-hour ${pt.isDayBoundary ? 'day-boundary' : ''}`}
+                style={{ width: `${colWidth}px`, flex: `0 0 ${colWidth}px` }}
+              >
+                {pt.dayLabel && (
+                  <span className="hour-day-tag">{pt.dayLabel}</span>
                 )}
+                <div className={`forecast-icon ${pt.icon}`}>
+                  {pt.icon === 'sunny' ? (
+                    <Sun aria-hidden="true" />
+                  ) : pt.icon === 'moon' ? (
+                    <Moon aria-hidden="true" />
+                  ) : pt.icon === 'partly-moon' ? (
+                    <CloudMoon aria-hidden="true" />
+                  ) : pt.icon === 'partly' ? (
+                    <CloudSun aria-hidden="true" />
+                  ) : pt.icon === 'rainy' ? (
+                    <CloudRain aria-hidden="true" />
+                  ) : pt.icon === 'snowy' ? (
+                    <Snowflake aria-hidden="true" />
+                  ) : pt.icon === 'windy' ? (
+                    <Wind aria-hidden="true" />
+                  ) : pt.icon === 'thunderstorm' ? (
+                    <CloudLightning aria-hidden="true" />
+                  ) : (
+                    <Cloud aria-hidden="true" />
+                  )}
+                </div>
+                <div
+                  className="forecast-dot"
+                  style={{
+                    transform: `translateY(${yOffset}px)`,
+                    ...(isWarm
+                      ? {
+                          background: 'var(--sunlight)',
+                          boxShadow: '0 0 6px color-mix(in oklch, var(--sunlight) 50%, transparent)',
+                        }
+                      : {}),
+                  }}
+                  aria-hidden="true"
+                />
+                <div className="hour-label">{pt.label}</div>
+                <div className="hour-temp">{pt.temp}°</div>
               </div>
-              <div className="forecast-dot" aria-hidden="true" />
-              <div className="hour-label">{pt.label}</div>
-              <div className="hour-temp">{pt.temp}°</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

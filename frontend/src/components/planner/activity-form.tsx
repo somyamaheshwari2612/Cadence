@@ -1,8 +1,8 @@
-import { Footprints, Bike, PersonStanding, Briefcase, SlidersHorizontal, ArrowRight, Clock3, Thermometer, Wind, Droplet } from 'lucide-react';
+import { Footprints, Bike, PersonStanding, Briefcase, SlidersHorizontal, ArrowRight, Clock3, Thermometer, Wind, Droplet, ClockAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { WeatherSelect } from '@/components/weather-select';
-import { type Preferences, INDIA_ACTIVITY_PRESETS, getIndiaCpcbCategory, getIndiaHeatBand, formatTime } from '@/lib/activity-planner';
+import { type Preferences, INDIA_ACTIVITY_PRESETS, getIndiaCpcbCategory, getIndiaHeatBand, formatTime, getDayMinutesFromTimeString } from '@/lib/activity-planner';
 import { CadenceInfoTooltip } from '@/components/cadence-info-tooltip';
 import { useState } from 'react';
 
@@ -16,7 +16,7 @@ const activities = [
 
 const TIME_STEPS = Array.from({ length: 48 }, (_, i) => i * 30);
 
-function buildTimeOptions(selectedValue: number) {
+function buildTimeOptions(selectedValue: number, currentMinutes?: number) {
   const steps = [...TIME_STEPS];
   if (!steps.includes(selectedValue)) {
     steps.push(selectedValue);
@@ -24,7 +24,9 @@ function buildTimeOptions(selectedValue: number) {
   }
   const displayMap: Record<string, string> = {};
   steps.forEach(m => {
-    displayMap[String(m)] = formatTime(m);
+    const formatted = formatTime(m);
+    const isPast = currentMinutes !== undefined && currentMinutes > 0 && m < currentMinutes;
+    displayMap[String(m)] = isPast ? `${formatted} (past)` : formatted;
   });
   return {
     options: steps.map(String),
@@ -38,12 +40,16 @@ export function ActivityForm({
   onSubmit,
   changed,
   timezoneAbbr,
+  currentLocalTime,
+  timezone,
 }: {
   preferences: Preferences;
   onChange: (value: Preferences) => void;
   onSubmit: () => void;
   changed: boolean;
   timezoneAbbr?: string;
+  currentLocalTime?: string;
+  timezone?: string;
 }) {
   const [custom, setCustom] = useState(false);
   const update = (key: keyof Preferences, value: number | string | boolean) =>
@@ -67,11 +73,34 @@ export function ActivityForm({
     }
   };
 
-  const startData = buildTimeOptions(preferences.start);
-  const endData = buildTimeOptions(preferences.end);
+  const currentMinutes = getDayMinutesFromTimeString(currentLocalTime, timezone);
+  const formattedNow = formatTime(currentMinutes);
+
+  const isWindowPast = preferences.end <= currentMinutes;
+  const isPartiallyPast = preferences.start < currentMinutes && preferences.end > currentMinutes;
+  const remainingMins = preferences.end - currentMinutes;
+  const isInsufficientRemaining = isPartiallyPast && remainingMins < preferences.duration;
+
+  const handleSetToUpcoming = () => {
+    // Jump to the next upcoming 30-minute block after current time
+    const nextStart = Math.min(1380, Math.ceil((currentMinutes + 5) / 30) * 30);
+    const duration = preferences.duration || 60;
+    const nextEnd = Math.min(1440, nextStart + Math.max(120, duration + 60));
+    onChange({
+      ...preferences,
+      start: nextStart,
+      end: nextEnd,
+    });
+  };
+
+  const startData = buildTimeOptions(preferences.start, currentMinutes);
+  const endData = buildTimeOptions(preferences.end, currentMinutes);
 
   const valid =
-    preferences.duration > 0 && preferences.end - preferences.start >= preferences.duration;
+    preferences.duration > 0 &&
+    preferences.end - preferences.start >= preferences.duration &&
+    !isWindowPast &&
+    !isInsufficientRemaining;
 
   const currentPreset = INDIA_ACTIVITY_PRESETS[preferences.activity];
 
@@ -79,7 +108,7 @@ export function ActivityForm({
     <section className="panel activity-planner" aria-labelledby="activity-heading">
       <div className="heading-row">
         <h2 className="section-heading" id="activity-heading">
-          <Footprints /> Make time for outside <span className="heading-dash" />
+          <Footprints /> Make time for outside
         </h2>
         <span className="small-caption">Your activity. Your preferences.</span>
       </div>
@@ -167,6 +196,40 @@ export function ActivityForm({
                 onValueChange={v => update('end', Number(v))}
               />
             </div>
+            {isWindowPast && (
+              <div className="availability-past-alert" role="status" aria-live="polite">
+                <span className="availability-past-badge">
+                  <ClockAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" aria-hidden="true" /> Time has passed
+                </span>
+                <span className="availability-past-text">
+                  This window already ended today (currently {formattedNow}).
+                </span>
+                <button
+                  type="button"
+                  className="availability-past-btn"
+                  onClick={handleSetToUpcoming}
+                >
+                  Jump to upcoming time
+                </button>
+              </div>
+            )}
+            {isInsufficientRemaining && !isWindowPast && (
+              <div className="availability-past-alert" role="status" aria-live="polite">
+                <span className="availability-past-badge">
+                  <ClockAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" aria-hidden="true" /> Closes soon
+                </span>
+                <span className="availability-past-text">
+                  Only {remainingMins} min left before {formatTime(preferences.end)} (needs {preferences.duration} min).
+                </span>
+                <button
+                  type="button"
+                  className="availability-past-btn"
+                  onClick={handleSetToUpcoming}
+                >
+                  Adjust time
+                </button>
+              </div>
+            )}
           </div>
           <div className="planner-field">
             <label htmlFor="temperature-preference" className="flex items-center justify-between">
@@ -248,14 +311,23 @@ export function ActivityForm({
         </div>
         <div className="planner-actions">
           <p>
-            {!valid
+            {isWindowPast
+              ? `Selected window has already passed today (currently ${formattedNow}). Choose an upcoming time.`
+              : isInsufficientRemaining
+              ? `Window closes too soon (${remainingMins} min left). Choose an upcoming window.`
+              : !valid
               ? 'Choose a time range long enough for your activity.'
               : changed
               ? 'Preferences changed · find a window to update your result.'
               : 'A continuous window, compared against your preferences.'}
           </p>
-          <Button variant="planner" type="submit" disabled={!valid}>
-            Find a better window <ArrowRight />
+          <Button
+            variant="planner"
+            type="submit"
+            disabled={!valid}
+            className={isWindowPast ? 'planner-button-disabled' : undefined}
+          >
+            {isWindowPast ? 'Time has passed today' : isInsufficientRemaining ? 'Window closes soon' : 'Find a better window'} <ArrowRight />
           </Button>
         </div>
       </form>

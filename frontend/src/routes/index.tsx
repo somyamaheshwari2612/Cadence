@@ -22,6 +22,8 @@ import {
   getIndiaCpcbCategory,
   ForecastHour,
   Decision,
+  getDayMinutesFromTimeString,
+  formatTime,
 } from '@/lib/activity-planner';
 import { searchLocations } from '@/lib/api';
 import type { LocationCoords } from '@/lib/location-utils';
@@ -138,6 +140,14 @@ function applyCurrentConditions(
       pressureStatus: curr.pressure_status ?? prev.pressureStatus ?? 'Steady',
       sunrise: curr.sunrise ?? prev.sunrise ?? '06:22 AM',
       sunset: curr.sunset ?? prev.sunset ?? '05:59 PM',
+      tomorrowSunrise: curr.tomorrow_sunrise ?? prev.tomorrowSunrise,
+      tomorrowSunset: curr.tomorrow_sunset ?? prev.tomorrowSunset,
+      moonrise: curr.moonrise ?? prev.moonrise ?? '02:17 AM',
+      moonset: curr.moonset ?? prev.moonset ?? '03:48 PM',
+      tomorrowMoonrise: curr.tomorrow_moonrise ?? prev.tomorrowMoonrise,
+      tomorrowMoonset: curr.tomorrow_moonset ?? prev.tomorrowMoonset,
+      moonPhaseText: curr.moon_phase ?? prev.moonPhaseText ?? 'Waning Gibbous\n(72%)',
+      tomorrowMoonPhaseText: curr.tomorrow_moon_phase ?? prev.tomorrowMoonPhaseText ?? 'Waning Gibbous\n(63%)',
       isNight: curr.is_night,
       isDay: curr.is_day,
       timezone: res.rawResponse?.metadata?.timezone,
@@ -213,13 +223,10 @@ function WeatherDashboard() {
   const [showAlternative, setShowAlternative] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const activeRequestIdRef = useRef(0);
-
-  // Live backend data states with initial client fallbacks
-  const [decision, setDecision] = useState<Decision>(() => compareWindows(mockForecast, applied));
-  const [hours, setHours] = useState<ForecastHour[]>(mockForecast);
   const [retrievedTime, setRetrievedTime] = useState('Forecast retrieved 10 Oct · 11:42 AM IST');
   const [backendMeta, setBackendMeta] = useState<Record<string, any>>({});
+  const activeRequestIdRef = useRef(0);
+
   const [currentConditions, setCurrentConditions] = useState<CurrentConditions>({
     modeledTemperature: 28,
     apparentTemperature: 31,
@@ -233,7 +240,22 @@ function WeatherDashboard() {
     pressureStatus: 'Steady',
     sunrise: '06:22 AM',
     sunset: '05:59 PM',
+    tomorrowSunrise: '06:23 AM',
+    tomorrowSunset: '05:58 PM',
+    moonrise: '02:17 AM',
+    moonset: '03:48 PM',
+    tomorrowMoonrise: '03:08 AM',
+    tomorrowMoonset: '04:38 PM',
+    moonPhaseText: 'Waning Gibbous\n(72%)',
+    tomorrowMoonPhaseText: 'Waning Gibbous\n(63%)',
   });
+
+  const localMinutes = getDayMinutesFromTimeString(currentConditions.localTime, currentConditions.timezone);
+  const formattedCurrentTime = formatTime(localMinutes);
+
+  // Live backend data states with initial client fallbacks
+  const [decision, setDecision] = useState<Decision>(() => compareWindows(mockForecast, applied, localMinutes));
+  const [hours, setHours] = useState<ForecastHour[]>(mockForecast);
 
   const planner = useRef<HTMLDivElement>(null);
 
@@ -245,7 +267,7 @@ function WeatherDashboard() {
     async function loadSchedule() {
       setIsLoading(true);
       try {
-        const res = await queryBackendSchedule(applied, coords, showAlternative);
+        const res = await queryBackendSchedule(applied, coords, showAlternative, localMinutes);
 
         if (!isCancelled && activeRequestIdRef.current === reqId) {
           setDecision(res.decision);
@@ -312,7 +334,7 @@ function WeatherDashboard() {
     }
 
     try {
-      const res = await queryBackendSchedule(applied, nextCoords, false);
+      const res = await queryBackendSchedule(applied, nextCoords, false, localMinutes);
 
       if (activeRequestIdRef.current === reqId) {
         if (res && res.hours && res.hours.length > 0) {
@@ -367,7 +389,7 @@ function WeatherDashboard() {
     setIsLoading(true);
     const minDelay = new Promise((resolve) => setTimeout(resolve, 650));
     const [res] = await Promise.all([
-      queryBackendSchedule(applied, coords, showAlternative),
+      queryBackendSchedule(applied, coords, showAlternative, localMinutes),
       minDelay,
     ]);
     setDecision(res.decision);
@@ -388,6 +410,32 @@ function WeatherDashboard() {
       : undefined;
 
   const changed = JSON.stringify(preferences) !== JSON.stringify(applied);
+
+  const handleSetUpcoming = () => {
+    const nextStart = Math.min(1380, Math.ceil((localMinutes + 5) / 30) * 30);
+    const duration = preferences.duration || 60;
+    const nextEnd = Math.min(1440, nextStart + Math.max(120, duration + 60));
+    const nextPrefs = {
+      ...preferences,
+      start: nextStart,
+      end: nextEnd,
+    };
+    setPreferences(nextPrefs);
+    setApplied(nextPrefs);
+    setShowAlternative(false);
+  };
+
+  const handlePlanTomorrow = () => {
+    // Tomorrow morning slot e.g. 6:00 AM – 9:00 AM (360 to 540)
+    const nextPrefs = {
+      ...preferences,
+      start: 360,
+      end: 540,
+    };
+    setPreferences(nextPrefs);
+    setApplied(nextPrefs);
+    setShowAlternative(false);
+  };
   const hasDataIssue =
     decision.state === 'incomplete' || hours.some(h => h.status === 'missing');
 
@@ -472,9 +520,9 @@ function WeatherDashboard() {
             timezoneAbbr: currentConditions.timezoneAbbr,
             utcOffsetSeconds: currentConditions.utcOffsetSeconds,
             localTime: currentConditions.localTime,
-            moonrise: '02:17 AM',
-            moonset: '03:48 PM',
-            moonPhaseText: 'Waning Gibbous\n(72%)',
+            moonrise: currentConditions.moonrise ?? '02:17 AM',
+            moonset: currentConditions.moonset ?? '03:48 PM',
+            moonPhaseText: currentConditions.moonPhaseText ?? 'Waning Gibbous\n(72%)',
             pm25: currentConditions.pm25 ?? 50,
             cpcbIndicator: cpcbTelemetry.subindex,
             cpcbCategory: cpcbTelemetry.category,
@@ -520,6 +568,8 @@ function WeatherDashboard() {
             onChange={setPreferences}
             changed={changed}
             timezoneAbbr={currentConditions.timezoneAbbr}
+            currentLocalTime={currentConditions.localTime}
+            timezone={currentConditions.timezone}
             onSubmit={() => {
               setApplied({ ...preferences });
               setShowAlternative(false);
@@ -536,6 +586,9 @@ function WeatherDashboard() {
           condition={currentConditions.condition}
           sunrise={currentConditions.sunrise}
           sunset={currentConditions.sunset}
+          currentTimeFormatted={formattedCurrentTime}
+          onSetUpcoming={handleSetUpcoming}
+          onPlanTomorrow={handlePlanTomorrow}
           onEdit={() => {
             planner.current?.scrollIntoView({
               behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -592,25 +645,63 @@ function WeatherDashboard() {
             data={{
               sunrise: currentConditions.sunrise ?? '06:22 AM',
               sunset: currentConditions.sunset ?? '05:59 PM',
-              moonrise: '02:17 AM',
-              moonset: '03:48 PM',
-              moonPhaseText: 'Waning Gibbous\n(72%)',
+              moonrise: currentConditions.moonrise ?? '02:17 AM',
+              moonset: currentConditions.moonset ?? '03:48 PM',
+              moonPhaseText: currentConditions.moonPhaseText ?? 'Waning Gibbous\n(72%)',
+              tomorrowSunrise: currentConditions.tomorrowSunrise,
+              tomorrowSunset: currentConditions.tomorrowSunset,
+              tomorrowMoonrise: currentConditions.tomorrowMoonrise,
+              tomorrowMoonset: currentConditions.tomorrowMoonset,
+              tomorrowMoonPhaseText: currentConditions.tomorrowMoonPhaseText,
+              timezone: currentConditions.timezone,
+              utcOffsetSeconds: currentConditions.utcOffsetSeconds,
             }}
           />
           <TodaysForecastCard
             data={{
-              hourly: hours.slice(0, 11).map((h, i) => {
-                const hourLabel = i === 0 ? 'Now' : `${(h.hour % 24 % 12 || 12)} ${h.hour % 24 >= 12 ? 'PM' : 'AM'}`;
-                const sunriseMin = parseTimeStringToMinutes(currentConditions.sunrise) ?? 360;
-                const sunsetMin = parseTimeStringToMinutes(currentConditions.sunset) ?? 1080;
-                const hMins = (h.hour % 24) * 60;
-                const isNightHour = hMins >= sunsetMin || hMins < sunriseMin;
-                return {
-                  label: hourLabel,
-                  temp: h.apparent ? Math.round(h.apparent) : 28,
-                  icon: getHourlyIcon(h, isNightHour),
-                };
-              }),
+              hourly: (() => {
+                const extendedHours: ForecastHour[] = [...hours];
+                if (extendedHours.length > 0 && extendedHours.length < 48) {
+                  const lastHourNum = extendedHours[extendedHours.length - 1].hour;
+                  for (let i = extendedHours.length; i < 48; i++) {
+                    const ref = extendedHours[i % extendedHours.length];
+                    extendedHours.push({
+                      ...ref,
+                      hour: lastHourNum + (i - extendedHours.length + 1),
+                    });
+                  }
+                }
+                return extendedHours.slice(0, 48).map((h, i) => {
+                  const hourNum24 = h.hour % 24;
+                  const hour12 = hourNum24 % 12 || 12;
+                  const ampm = hourNum24 >= 12 ? 'PM' : 'AM';
+                  const hourLabel = i === 0 ? 'Now' : `${hour12} ${ampm}`;
+
+                  let dayLabel: string | undefined;
+                  let isDayBoundary = false;
+                  if (hourNum24 === 0 && i > 0) {
+                    isDayBoundary = true;
+                    dayLabel = i < 28 ? 'Tomorrow' : 'Day 3';
+                  }
+
+                  const sunriseMin = parseTimeStringToMinutes(i >= 24 && currentConditions.tomorrowSunrise ? currentConditions.tomorrowSunrise : currentConditions.sunrise) ?? 360;
+                  const sunsetMin = parseTimeStringToMinutes(i >= 24 && currentConditions.tomorrowSunset ? currentConditions.tomorrowSunset : currentConditions.sunset) ?? 1080;
+                  const hMins = hourNum24 * 60;
+                  const isNightHour = hMins >= sunsetMin || hMins < sunriseMin;
+
+                  const temp = h.temperature !== null && h.temperature !== undefined
+                    ? Math.round(h.temperature)
+                    : (h.apparent !== null && h.apparent !== undefined ? Math.round(h.apparent) : 28);
+
+                  return {
+                    label: hourLabel,
+                    temp,
+                    icon: getHourlyIcon(h, isNightHour),
+                    dayLabel,
+                    isDayBoundary,
+                  };
+                });
+              })(),
             }}
           />
         </div>

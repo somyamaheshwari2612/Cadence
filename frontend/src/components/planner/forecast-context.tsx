@@ -22,6 +22,14 @@ export interface CurrentConditions {
   pressureStatus?: string;
   sunrise?: string;
   sunset?: string;
+  tomorrowSunrise?: string;
+  tomorrowSunset?: string;
+  moonrise?: string;
+  moonset?: string;
+  tomorrowMoonrise?: string;
+  tomorrowMoonset?: string;
+  moonPhaseText?: string;
+  tomorrowMoonPhaseText?: string;
   isNight?: boolean;
   isDay?: boolean;
   timezone?: string;
@@ -74,7 +82,7 @@ export function ForecastContext({ conditions }: { conditions?: CurrentConditions
     <section className="supporting-context">
       <div className="heading-row">
         <h2 className="section-heading">
-          <Sun /> Environmental context <span className="heading-dash" />
+          <Sun /> Environmental context
         </h2>
         <span className="small-caption">Now · Modeled conditions</span>
       </div>

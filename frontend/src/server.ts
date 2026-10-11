@@ -46,6 +46,52 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const url = new URL(request.url);
+
+    // Forward any /api/* calls directly to the local Flask backend on 127.0.0.1:5000
+    // This allows mobile phones and other LAN devices accessing port 3001 to seamlessly use the backend
+    // without CORS, IP mismatches, or Windows firewall blocking port 5000.
+    if (url.pathname.startsWith('/api/')) {
+      try {
+        const targetUrl = `http://127.0.0.1:5000${url.pathname}${url.search}`;
+        const headers = new Headers(request.headers);
+        headers.set('host', '127.0.0.1:5000');
+
+        const init: RequestInit = {
+          method: request.method,
+          headers,
+        };
+
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
+          init.body = await request.arrayBuffer();
+        }
+
+        const backendRes = await fetch(targetUrl, init);
+        const resHeaders = new Headers(backendRes.headers);
+        resHeaders.set('access-control-allow-origin', '*');
+        resHeaders.set('access-control-allow-headers', 'Content-Type, Authorization');
+        resHeaders.set('access-control-allow-methods', 'GET, POST, PUT, DELETE, OPTIONS');
+
+        return new Response(backendRes.body, {
+          status: backendRes.status,
+          statusText: backendRes.statusText,
+          headers: resHeaders,
+        });
+      } catch (err: any) {
+        console.error('Backend proxy error in server.ts:', err);
+        return new Response(
+          JSON.stringify({ error: 'Backend proxy unreachable', detail: err?.message }),
+          {
+            status: 502,
+            headers: {
+              'content-type': 'application/json',
+              'access-control-allow-origin': '*',
+            },
+          }
+        );
+      }
+    }
+
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
