@@ -3,3 +3,4 @@ flask-cors
 requests
 google-genai
 python-dotenv
+gunicorn
