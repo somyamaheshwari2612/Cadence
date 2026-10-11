@@ -70,12 +70,14 @@ export default {
         }
 
         const backendRes = await fetch(targetUrl, init);
-        const resHeaders = new Headers(backendRes.headers);
+        const resBody = await backendRes.text();
+        const resHeaders = new Headers();
+        resHeaders.set('content-type', backendRes.headers.get('content-type') || 'application/json');
         resHeaders.set('access-control-allow-origin', '*');
         resHeaders.set('access-control-allow-headers', 'Content-Type, Authorization');
         resHeaders.set('access-control-allow-methods', 'GET, POST, PUT, DELETE, OPTIONS');
 
-        return new Response(backendRes.body, {
+        return new Response(resBody, {
           status: backendRes.status,
           statusText: backendRes.statusText,
           headers: resHeaders,
