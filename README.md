@@ -80,8 +80,9 @@ Cadence/
 │   ├── instructions.txt           # Data provenance & API rules
 │   └── alias.txt                  # Terminal aliases
 │
+├── render.yaml                    # Render Blueprint specification for Backend Web Service
 ├── template.yaml                  # Open-source AWS SAM template (Serverless Application Model)
-├── vercel.json                    # Vercel deployment rewrites & serverless function bundling
+├── vercel.json                    # Vercel deployment configuration
 ├── requirements.txt               # Root Python dependencies for cloud runtimes
 └── README.md                      # This file
 ```
@@ -96,7 +97,6 @@ cd backend
 python app.py
 # Runs on http://localhost:5000
 ```
-*(Or run the Vercel-compatible entry point: `python api/app.py`)*
 
 ### 2. Frontend Development Server
 ```bash
@@ -107,22 +107,46 @@ npm run dev -- --port 3001
 
 ---
 
-## Cloud Deployment
+## Production Deployment (Vercel Frontend + Render Backend)
 
-### A. Vercel Deployment
-Cadence is configured out-of-the-box for Vercel via [`vercel.json`](vercel.json) and [`api/app.py`](api/app.py):
-1. Connect your repository to Vercel or run:
-   ```bash
-   vercel
-   ```
-2. Vercel automatically:
-   - Detects the frontend build in `frontend/`.
-   - Provisions `@vercel/python` Serverless Functions for `api/app.py`.
-   - Bundles backend calculation engines (`backend/**`).
-   - Installs dependencies from root `requirements.txt`.
+Cadence is structured for seamless multi-cloud deployment: **Frontend on Vercel** and **Flask Backend on Render**.
 
-### B. AWS Serverless Deployment (AWS SAM CLI)
-Cadence includes an open-source AWS Serverless Application Model specification in [`template.yaml`](template.yaml):
+### 1. Backend Deployment on Render
+
+1. Log in to your [Render Dashboard](https://dashboard.render.com/) and click **New +** $\to$ **Web Service** (or use **Blueprint** pointing to `render.yaml`).
+2. Connect your GitHub repository `Cadence`.
+3. Configure the service settings:
+   - **Root Directory**: `backend`
+   - **Environment**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 app:app`
+   - **Health Check Path**: `/healthz`
+4. Under **Environment Variables**, add:
+   - `GOOGLE_API_KEY`: *(Your Google AI Studio Gemini API key)*
+   - `FLASK_ENV`: `production`
+   - `PYTHON_VERSION`: `3.11.9`
+5. Click **Create Web Service**. Once deployed, Render will provide a service URL (e.g. `https://cadence-backend.onrender.com`).
+
+---
+
+### 2. Frontend Deployment on Vercel
+
+1. Log in to [Vercel](https://vercel.com/) and click **Add New...** $\to$ **Project**.
+2. Import your `Cadence` repository.
+3. In the project configuration:
+   - **Root Directory**: Set to `frontend` *(click Edit and select `frontend`)*
+   - **Framework Preset**: `Vite` (automatically detected)
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+4. Under **Environment Variables**, add:
+   - `VITE_BACKEND_URL`: Set to your Render URL (e.g. `https://cadence-backend.onrender.com` without trailing slash)
+5. Click **Deploy**.
+   *Vercel will build the frontend assets, and all atmospheric/scheduling API requests will automatically route to your Render backend.*
+
+---
+
+### 3. Alternative: AWS Serverless Deployment (AWS SAM CLI)
+Cadence also includes an AWS Serverless Application Model specification in [`template.yaml`](template.yaml):
 1. **Local API Testing**:
    ```bash
    sam build
@@ -132,7 +156,6 @@ Cadence includes an open-source AWS Serverless Application Model specification i
    ```bash
    sam deploy --guided
    ```
-   *Deploys the Flask API onto AWS Lambda and Amazon API Gateway with automated CORS and configurable Gemini API key parameter.*
 
 ---
 

@@ -48,14 +48,17 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const url = new URL(request.url);
 
-    // Forward any /api/* calls directly to the local Flask backend on 127.0.0.1:5000
-    // This allows mobile phones and other LAN devices accessing port 3001 to seamlessly use the backend
-    // without CORS, IP mismatches, or Windows firewall blocking port 5000.
+    // Forward /api/* calls to backend (configured via VITE_BACKEND_URL in production, or localhost in dev)
     if (url.pathname.startsWith('/api/')) {
       try {
-        const targetUrl = `http://127.0.0.1:5000${url.pathname}${url.search}`;
+        const backendOrigin =
+          (typeof process !== 'undefined' && (process.env?.['VITE_BACKEND_URL'] || process.env?.['BACKEND_URL'])) ||
+          'http://127.0.0.1:5000';
+        const cleanOrigin = backendOrigin.endsWith('/') ? backendOrigin.slice(0, -1) : backendOrigin;
+        const targetUrl = `${cleanOrigin}${url.pathname}${url.search}`;
         const headers = new Headers(request.headers);
-        headers.set('host', '127.0.0.1:5000');
+        const hostHeader = cleanOrigin.replace(/^https?:\/\//, '');
+        headers.set('host', hostHeader);
 
         const init: RequestInit = {
           method: request.method,

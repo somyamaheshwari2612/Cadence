@@ -111,6 +111,18 @@ def _get_png_dimensions(data):
     return width, height
 
 
+@app.route('/healthz', methods=['GET'])
+@app.route('/api/health', methods=['GET'])
+@app.route('/', methods=['GET'])
+def health_check():
+    """Health check endpoint for Render service monitoring."""
+    return jsonify({
+        "status": "healthy",
+        "service": "cadence-backend",
+        "version": "1.0.0"
+    }), 200
+
+
 @app.route('/api/geocode', methods=['POST', 'OPTIONS'])
 def geocode():
     """
@@ -360,6 +372,7 @@ def handler(event, context=None):
         pass
 
     try:
+        # pyrefly: ignore [missing-import]
         import apig_wsgi
         return apig_wsgi.make_lambda_handler(app)(event, context)
     except ImportError:
@@ -466,5 +479,7 @@ def handler(event, context=None):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
+
 
