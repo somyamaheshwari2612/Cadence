@@ -4,3 +4,4 @@ requests
 google-genai
 python-dotenv
 gunicorn
+serverless_wsgi
