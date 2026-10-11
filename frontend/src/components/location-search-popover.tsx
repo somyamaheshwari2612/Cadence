@@ -44,8 +44,8 @@ interface LocationSearchPopoverProps {
     locationName: string,
     coords?: LocationCoords
   ) => void;
-  coords?: LocationCoords;
-  triggerVariant?: 'hero' | 'bar' | 'banner';
+  coords?: LocationCoords | undefined;
+  triggerVariant?: 'hero' | 'bar' | 'banner' | undefined;
 }
 
 export function LocationSearchPopover({
@@ -250,7 +250,8 @@ export function LocationSearchPopover({
     );
   };
 
-  const handleSelectPlace = (place: GeocodePlace) => {
+  const handleSelectPlace = (place: GeocodePlace | undefined) => {
+    if (!place) return;
     const displayName = place.admin1
       ? `${place.name}, ${place.admin1}`
       : place.country
@@ -277,8 +278,9 @@ export function LocationSearchPopover({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (results.length > 0) {
-        handleSelectPlace(results[0]);
+      const firstResult = results[0];
+      if (firstResult) {
+        handleSelectPlace(firstResult);
       } else if (query.trim().length >= 2) {
         executeSearch(query);
       }
@@ -566,7 +568,8 @@ export function LocationSearchPopover({
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {POPULAR_LOCATIONS.map(pop => {
-                  const isCurrent = location.toLowerCase().includes(pop.name.split(',')[0].toLowerCase());
+                  const cityName = pop.name.split(',')[0] ?? pop.name;
+                  const isCurrent = location.toLowerCase().includes(cityName.toLowerCase());
                   return (
                     <button
                       key={pop.name}
@@ -615,4 +618,3 @@ export function LocationSearchPopover({
   </div>
 );
 }
-

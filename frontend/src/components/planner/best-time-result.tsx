@@ -7,14 +7,14 @@ import { CadenceInfoTooltip } from '@/components/cadence-info-tooltip';
 interface SingleWindowCardProps {
   block: ActivityBlock;
   badgeType: 'schedule' | 'weather' | 'qualified' | 'alternative';
-  badgeLabel?: string;
+  badgeLabel?: string | undefined;
   title: string;
-  statusText?: string;
-  isAlternative?: boolean;
+  statusText?: string | undefined;
+  isAlternative?: boolean | undefined;
   preferences: Preferences;
-  condition?: string;
-  sunrise?: string;
-  sunset?: string;
+  condition?: string | undefined;
+  sunrise?: string | undefined;
+  sunset?: string | undefined;
 }
 
 function SingleWindowCard({
@@ -257,12 +257,12 @@ export function BestTimeResult({
   showAlternative: boolean;
   onAlternative: () => void;
   onEdit: () => void;
-  condition?: string;
-  sunrise?: string;
-  sunset?: string;
-  onSetUpcoming?: () => void;
-  onPlanTomorrow?: () => void;
-  currentTimeFormatted?: string;
+  condition?: string | undefined;
+  sunrise?: string | undefined;
+  sunset?: string | undefined;
+  onSetUpcoming?: (() => void) | undefined;
+  onPlanTomorrow?: (() => void) | undefined;
+  currentTimeFormatted?: string | undefined;
 }) {
   // Guardrail: Past window state
   if (decision.state === 'past-window') {
@@ -332,7 +332,7 @@ export function BestTimeResult({
   }
 
   const scheduleWindow = decision.state === 'qualified' ? decision.scheduleWindow || decision.block : decision.state === 'no-slot' ? decision.scheduleWindow : undefined;
-  const weatherAlt = decision.weatherAlternative;
+  const weatherAlt = decision.state === 'incomplete' ? undefined : decision.weatherAlternative;
 
   // Determine if we should present the dual-window view:
   // Active when both a schedule-fitting window and a distinct weather alternative are available

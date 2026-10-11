@@ -321,10 +321,11 @@ function WeatherDashboard() {
       // Geocode dynamically
       try {
         const places = await searchLocations(newLoc);
-        if (places.length > 0) {
+        const firstPlace = places[0];
+        if (firstPlace) {
           nextCoords = {
-            latitude: places[0].latitude,
-            longitude: places[0].longitude,
+            latitude: firstPlace.latitude,
+            longitude: firstPlace.longitude,
             source: 'search',
           };
         }
@@ -662,13 +663,17 @@ function WeatherDashboard() {
               hourly: (() => {
                 const extendedHours: ForecastHour[] = [...hours];
                 if (extendedHours.length > 0 && extendedHours.length < 48) {
-                  const lastHourNum = extendedHours[extendedHours.length - 1].hour;
-                  for (let i = extendedHours.length; i < 48; i++) {
-                    const ref = extendedHours[i % extendedHours.length];
-                    extendedHours.push({
-                      ...ref,
-                      hour: lastHourNum + (i - extendedHours.length + 1),
-                    });
+                  const lastHour = extendedHours[extendedHours.length - 1];
+                  const lastHourNum = lastHour?.hour ?? 0;
+                  const baseLength = extendedHours.length;
+                  for (let i = baseLength; i < 48; i++) {
+                    const ref = extendedHours[i % baseLength];
+                    if (ref) {
+                      extendedHours.push({
+                        ...ref,
+                        hour: lastHourNum + (i - baseLength + 1),
+                      });
+                    }
                   }
                 }
                 return extendedHours.slice(0, 48).map((h, i) => {

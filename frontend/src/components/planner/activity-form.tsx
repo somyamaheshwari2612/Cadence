@@ -47,9 +47,9 @@ export function ActivityForm({
   onChange: (value: Preferences) => void;
   onSubmit: () => void;
   changed: boolean;
-  timezoneAbbr?: string;
-  currentLocalTime?: string;
-  timezone?: string;
+  timezoneAbbr?: string | undefined;
+  currentLocalTime?: string | undefined;
+  timezone?: string | undefined;
 }) {
   const [custom, setCustom] = useState(false);
   const update = (key: keyof Preferences, value: number | string | boolean) =>

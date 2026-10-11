@@ -31,8 +31,8 @@ interface HourlyTimelineProps {
   preferences: Preferences;
   block: ActivityBlock | undefined;
   alternative: boolean;
-  sunrise?: string;
-  sunset?: string;
+  sunrise?: string | undefined;
+  sunset?: string | undefined;
 }
 
 export function HourlyTimeline({

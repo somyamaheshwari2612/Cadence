@@ -51,31 +51,31 @@ export interface WeatherDashboardData {
   updatedTime: string;
   sunrise: string;
   sunset: string;
-  tomorrowSunrise?: string;
-  tomorrowSunset?: string;
+  tomorrowSunrise?: string | undefined;
+  tomorrowSunset?: string | undefined;
   moonrise: string;
   moonset: string;
-  tomorrowMoonrise?: string;
-  tomorrowMoonset?: string;
+  tomorrowMoonrise?: string | undefined;
+  tomorrowMoonset?: string | undefined;
   moonPhaseText: string;
-  tomorrowMoonPhaseText?: string;
-  isNight?: boolean;
-  isDay?: boolean;
-  timezone?: string;
-  timezoneAbbr?: string;
-  utcOffsetSeconds?: number;
-  localTime?: string;
+  tomorrowMoonPhaseText?: string | undefined;
+  isNight?: boolean | undefined;
+  isDay?: boolean | undefined;
+  timezone?: string | undefined;
+  timezoneAbbr?: string | undefined;
+  utcOffsetSeconds?: number | undefined;
+  localTime?: string | undefined;
   aqi: number;
   aqiStatus: string;
-  pm25?: number;
-  cpcbIndicator?: number;
-  cpcbCategory?: string;
-  cpcbAdvisory?: string;
+  pm25?: number | undefined;
+  cpcbIndicator?: number | undefined;
+  cpcbCategory?: string | undefined;
+  cpcbAdvisory?: string | undefined;
   uvIndex: number;
   uvStatus: string;
-  precipitation?: number;
-  precipitationStatus?: string;
-  rainProbability?: number;
+  precipitation?: number | undefined;
+  precipitationStatus?: string | undefined;
+  rainProbability?: number | undefined;
   humidity: number;
   humidityStatus: string;
   windSpeed: number;
@@ -88,19 +88,19 @@ export interface WeatherDashboardData {
     label: string;
     temp: number;
     icon: 'sunny' | 'moon' | 'partly' | 'partly-moon' | 'cloudy' | 'rainy' | 'snowy' | 'windy' | 'thunderstorm';
-    dayLabel?: string;
-    isDayBoundary?: boolean;
+    dayLabel?: string | undefined;
+    isDayBoundary?: boolean | undefined;
   }>;
 }
 
 export interface WeatherDashboardProps {
   location: string;
   onLocationChange: (loc: string, coords?: LocationCoords) => void;
-  data?: Partial<WeatherDashboardData>;
-  isLoading?: boolean;
-  onRefresh?: () => void;
-  coords?: LocationCoords;
-  hasDataIssue?: boolean;
+  data?: Partial<WeatherDashboardData> | undefined;
+  isLoading?: boolean | undefined;
+  onRefresh?: (() => void) | undefined;
+  coords?: LocationCoords | undefined;
+  hasDataIssue?: boolean | undefined;
 }
 
 
@@ -301,7 +301,7 @@ export function SunMoonCard({
   data,
   className = '',
 }: {
-  data?: Partial<WeatherDashboardData>;
+  data?: Partial<WeatherDashboardData> | undefined;
   className?: string;
 }) {
   const [period, setPeriod] = useState<'Today' | 'Tomorrow'>('Today');
@@ -440,7 +440,7 @@ export function EnvironmentBentoGrid({
   data,
   className = '',
 }: {
-  data?: Partial<WeatherDashboardData>;
+  data?: Partial<WeatherDashboardData> | undefined;
   className?: string;
 }) {
   const pm25 = data?.pm25 ?? 50;
@@ -738,7 +738,7 @@ export function TodaysForecastCard({
   data,
   className = '',
 }: {
-  data?: Partial<WeatherDashboardData>;
+  data?: Partial<WeatherDashboardData> | undefined;
   className?: string;
 }) {
   const [forecastPeriod, setForecastPeriod] = useState<'Next 24 hours' | 'Next 48 hours'>('Next 24 hours');
@@ -754,7 +754,7 @@ export function TodaysForecastCard({
       const h12 = h % 12 || 12;
       const ampm = h >= 12 ? 'PM' : 'AM';
       const label = i === 0 ? 'Now' : `${h12} ${ampm}`;
-      const temp = baseTemps[i % 24] + (i >= 24 ? 1 : 0);
+      const temp = (baseTemps[i % baseTemps.length] ?? 28) + (i >= 24 ? 1 : 0);
       const isNight = h < 6 || h >= 18;
       const icon = isNight ? (i % 3 === 0 ? 'partly-moon' : 'moon') : (temp > 30 ? 'sunny' : 'partly');
       const isDayBoundary = h === 0 && i > 0;
@@ -788,12 +788,15 @@ export function TodaysForecastCard({
     });
 
     // Catmull-Rom to Cubic Bezier conversion for smooth spline
-    let d = `M ${coords[0].cx} ${coords[0].cy}`;
+    const firstCoord = coords[0];
+    if (!firstCoord) return { splinePath: '', pointCoords: [] };
+    let d = `M ${firstCoord.cx} ${firstCoord.cy}`;
     for (let i = 0; i < coords.length - 1; i++) {
       const p0 = coords[Math.max(0, i - 1)];
       const p1 = coords[i];
       const p2 = coords[i + 1];
       const p3 = coords[Math.min(coords.length - 1, i + 2)];
+      if (!p0 || !p1 || !p2 || !p3) continue;
 
       const cp1x = p1.cx + (p2.cx - p0.cx) / 6;
       const cp1y = p1.cy + (p2.cy - p0.cy) / 6;

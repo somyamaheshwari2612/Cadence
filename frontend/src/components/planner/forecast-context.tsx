@@ -9,36 +9,36 @@ import {
 import moonImage from '@/assets/moon-clear-night.jpg';
 
 export interface CurrentConditions {
-  modeledTemperature?: number;
-  apparentTemperature?: number;
-  condition?: string;
-  weatherCode?: number;
-  pm25?: number;
-  rainProbability?: number;
-  windSpeed?: number;
-  windDirection?: string | number;
-  humidity?: number;
-  pressure?: number;
-  pressureStatus?: string;
-  sunrise?: string;
-  sunset?: string;
-  tomorrowSunrise?: string;
-  tomorrowSunset?: string;
-  moonrise?: string;
-  moonset?: string;
-  tomorrowMoonrise?: string;
-  tomorrowMoonset?: string;
-  moonPhaseText?: string;
-  tomorrowMoonPhaseText?: string;
-  isNight?: boolean;
-  isDay?: boolean;
-  timezone?: string;
-  timezoneAbbr?: string;
-  utcOffsetSeconds?: number;
-  localTime?: string;
+  modeledTemperature?: number | undefined;
+  apparentTemperature?: number | undefined;
+  condition?: string | undefined;
+  weatherCode?: number | undefined;
+  pm25?: number | undefined;
+  rainProbability?: number | undefined;
+  windSpeed?: number | undefined;
+  windDirection?: string | number | undefined;
+  humidity?: number | undefined;
+  pressure?: number | undefined;
+  pressureStatus?: string | undefined;
+  sunrise?: string | undefined;
+  sunset?: string | undefined;
+  tomorrowSunrise?: string | undefined;
+  tomorrowSunset?: string | undefined;
+  moonrise?: string | undefined;
+  moonset?: string | undefined;
+  tomorrowMoonrise?: string | undefined;
+  tomorrowMoonset?: string | undefined;
+  moonPhaseText?: string | undefined;
+  tomorrowMoonPhaseText?: string | undefined;
+  isNight?: boolean | undefined;
+  isDay?: boolean | undefined;
+  timezone?: string | undefined;
+  timezoneAbbr?: string | undefined;
+  utcOffsetSeconds?: number | undefined;
+  localTime?: string | undefined;
 }
 
-export function ForecastContext({ conditions }: { conditions?: CurrentConditions }) {
+export function ForecastContext({ conditions }: { conditions?: CurrentConditions | undefined }) {
   const readings = [
     {
       name: 'Modeled temperature',
@@ -171,15 +171,16 @@ export function ForecastTrust({
 }: {
   location: string;
   coords?: { latitude: number; longitude: number };
-  metadata?: Record<string, any>;
+  metadata?: Record<string, any> | undefined;
 }) {
   const latStr = coords ? `${coords.latitude.toFixed(2)}° N` : '27.49° N';
   const lngStr = coords ? `${coords.longitude.toFixed(2)}° E` : '77.67° E';
-  const tz = metadata?.timezone;
-  const tzAbbr = metadata?.timezone_abbreviation || (tz ? '' : 'IST');
-  const retrievedTime = metadata?.retrieval_timestamp_utc
+  const tz = metadata?.['timezone'];
+  const tzAbbr = metadata?.['timezone_abbreviation'] || (tz ? '' : 'IST');
+  const retrievedAt = metadata?.['retrieval_timestamp_utc'];
+  const retrievedTime = retrievedAt
     ? (() => {
-        const d = new Date(metadata.retrieval_timestamp_utc);
+        const d = new Date(retrievedAt);
         const timeOpts: Intl.DateTimeFormatOptions = {
           hour: 'numeric',
           minute: '2-digit',
