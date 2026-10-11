@@ -49,4 +49,4 @@ Resources:
 Outputs:
   CadenceApiUrl:
     Description: "API Gateway endpoint URL for Cadence API"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/api/"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/api/"
