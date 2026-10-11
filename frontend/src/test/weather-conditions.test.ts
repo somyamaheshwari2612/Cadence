@@ -3,6 +3,8 @@ import {
   weatherArtwork,
   getWeatherArtworkForCondition,
   getWeatherPoem,
+  getSolarStage,
+  sunArtwork,
 } from '@/lib/weather-artwork';
 
 describe('Weather Artwork & Condition Engine', () => {
@@ -176,6 +178,51 @@ describe('Weather Artwork & Condition Engine', () => {
       sunset: '05:59 PM',
     });
     expect(indiaArtwork).toBe(weatherArtwork.moonClear);
+  });
+
+  it('determines solar stages accurately for dawn, morning, solar noon, afternoon, sunset, and night', () => {
+    // Standard sunrise at 06:19 AM (379m), sunset at 05:49 PM (1069m), solar noon at 12:04 PM (724m)
+    const opts = { sunrise: '06:19 AM', sunset: '05:49 PM' };
+
+    // 1. Dawn / Sunrise: 06:00 AM (360m)
+    const dawn = getSolarStage({ ...opts, timeMinutes: 360 });
+    expect(dawn.key).toBe('dawn');
+    expect(dawn.label).toBe('Dawn & Sunrise');
+    expect(dawn.src).toBe(sunArtwork.dawn.src);
+
+    // 2. Morning Sun: 09:30 AM (570m)
+    const morning = getSolarStage({ ...opts, timeMinutes: 570 });
+    expect(morning.key).toBe('morning');
+    expect(morning.label).toBe('Morning Sun');
+    expect(morning.src).toBe(sunArtwork.morning.src);
+
+    // 3. Solar Noon: 12:15 PM (735m)
+    const noon = getSolarStage({ ...opts, timeMinutes: 735 });
+    expect(noon.key).toBe('noon');
+    expect(noon.label).toBe('Solar Noon');
+    expect(noon.src).toBe(sunArtwork.noon.src);
+
+    // 4. Afternoon Sun: 03:30 PM (910m)
+    const afternoon = getSolarStage({ ...opts, timeMinutes: 910 });
+    expect(afternoon.key).toBe('afternoon');
+    expect(afternoon.label).toBe('Afternoon Sun');
+    expect(afternoon.src).toBe(sunArtwork.afternoon.src);
+
+    // 5. Sunset & Dusk: 05:35 PM (1055m)
+    const sunset = getSolarStage({ ...opts, timeMinutes: 1055 });
+    expect(sunset.key).toBe('sunset');
+    expect(sunset.label).toBe('Sunset & Dusk');
+    expect(sunset.src).toBe(sunArtwork.sunset.src);
+
+    // 6. Below Horizon (Night): 10:30 PM (1350m) & 02:00 AM (120m)
+    const night = getSolarStage({ ...opts, timeMinutes: 1350 });
+    expect(night.key).toBe('night');
+    expect(night.label).toBe('Below Horizon');
+    expect(night.src).toBe(sunArtwork.night.src);
+
+    const deepNight = getSolarStage({ ...opts, timeMinutes: 120 });
+    expect(deepNight.key).toBe('night');
+    expect(deepNight.label).toBe('Below Horizon');
   });
 });
 

@@ -223,6 +223,8 @@ def _generate_modeled_fallback(latitude, longitude, retrieval_dt):
         "wind_direction": "ESE",
         "precipitation": 0.0,
         "pm2_5": 50.0,
+        "pressure": 1012,
+        "pressure_status": "Steady",
         "sunrise": "06:00 AM",
         "sunset": "06:30 PM",
         "is_day": fallback_is_day == 1,
@@ -246,8 +248,8 @@ def fetch_environmental_data(latitude, longitude, cached_at_utc=None):
         weather_url = (
             f"https://api.open-meteo.com/v1/forecast?"
             f"latitude={latitude}&longitude={longitude}&"
-            f"current=temperature_2m,apparent_temperature,precipitation,weather_code,relative_humidity_2m,wind_speed_10m,wind_direction_10m,is_day&"
-            f"hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,relative_humidity_2m,wind_speed_10m,wind_direction_10m&"
+            f"current=temperature_2m,apparent_temperature,precipitation,weather_code,relative_humidity_2m,wind_speed_10m,wind_direction_10m,is_day,surface_pressure&"
+            f"hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,relative_humidity_2m,wind_speed_10m,wind_direction_10m,surface_pressure&"
             f"daily=sunrise,sunset&"
             f"timezone=auto"
         )
@@ -316,6 +318,7 @@ def fetch_environmental_data(latitude, longitude, cached_at_utc=None):
     curr_wind_dir = _deg_to_compass(w_curr.get("wind_direction_10m", 0)) if w_curr.get("wind_direction_10m") is not None else "ESE"
     curr_rain = w_curr.get("precipitation", 0.0)
     curr_pm25 = a_curr.get("pm2_5", 25.0)
+    curr_pressure = w_curr.get("surface_pressure")
 
     curr_is_day = w_curr.get("is_day")
     if curr_is_day is None:
@@ -344,6 +347,8 @@ def fetch_environmental_data(latitude, longitude, cached_at_utc=None):
         "wind_direction": curr_wind_dir,
         "precipitation": curr_rain,
         "pm2_5": round(curr_pm25, 1) if curr_pm25 is not None else 25.0,
+        "pressure": round(curr_pressure) if curr_pressure is not None else 1012,
+        "pressure_status": "High" if (curr_pressure and curr_pressure > 1018) else "Low" if (curr_pressure and curr_pressure < 1008) else "Steady",
         "sunrise": sunrise_12h,
         "sunset": sunset_12h,
         "is_day": curr_is_day == 1,

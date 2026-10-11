@@ -18,6 +18,8 @@ export interface CurrentConditions {
   windSpeed?: number;
   windDirection?: string | number;
   humidity?: number;
+  pressure?: number;
+  pressureStatus?: string;
   sunrise?: string;
   sunset?: string;
   isNight?: boolean;

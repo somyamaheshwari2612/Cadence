@@ -1527,6 +1527,21 @@ button[role="switch"][data-state="checked"] {
     min-height: 40px;
     font-size: 13px;
   }
+
+  /* Celestial card mobile stack */
+  .celestial-body {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .sun-section {
+    padding-right: 0;
+    border-right: 0;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--fine-line);
+  }
+  .moon-section {
+    padding-left: 0;
+  }
 }
 
 /* Extra Small Mobile Devices (phones under 480px) */

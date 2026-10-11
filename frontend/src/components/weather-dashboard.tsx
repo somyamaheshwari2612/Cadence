@@ -422,6 +422,26 @@ export function EnvironmentBentoGrid({
   const visibility = data?.visibility ?? 8;
   const visibilityStatus = data?.visibilityStatus ?? 'Good';
 
+  // Dynamic telemetry curve calculations for Humidity
+  const clampedHum = Math.min(100, Math.max(0, humidity));
+  const humNodeY = Math.round(34 - (clampedHum / 100) * 24);
+  const humStart = Math.round(Math.min(34, Math.max(8, humNodeY + 4)));
+  const humC1 = Math.round(Math.min(34, Math.max(8, humNodeY + 6)));
+  const humC2 = Math.round(Math.min(34, Math.max(8, humNodeY - 2)));
+  const humC3 = Math.round(Math.min(34, Math.max(8, humNodeY - 1)));
+  const humEnd = Math.round(Math.min(34, Math.max(8, humNodeY + 3)));
+
+  // Dynamic telemetry curve calculations for Barometric Pressure
+  const clampedPressure = Math.min(1040, Math.max(980, pressure));
+  const presFraction = (clampedPressure - 980) / 60;
+  const presNodeY = Math.round(33 - presFraction * 24);
+  const presTrendOffset = pressureStatus === 'Rising' ? 3 : pressureStatus === 'Falling' ? -3 : 1;
+  const presStart = Math.round(Math.min(34, Math.max(8, presNodeY + presTrendOffset)));
+  const presC1 = Math.round(Math.min(34, Math.max(8, presStart - 2)));
+  const presC2 = Math.round(Math.min(34, Math.max(8, presNodeY + 2)));
+  const presC3 = Math.round(Math.min(34, Math.max(8, presNodeY - 1)));
+  const presEnd = Math.round(Math.min(34, Math.max(8, presNodeY + 2)));
+
   return (
     <section className={`panel environment ${className}`} aria-label="Environmental telemetry">
       <div className="heading-row">
@@ -529,14 +549,43 @@ export function EnvironmentBentoGrid({
             <small>%</small>
           </div>
           <div className="metric-status">{humidityStatus}</div>
-          <div className="metric-bottom">
-            <svg className="sparkline" viewBox="0 0 100 25" aria-hidden="true">
-              <path
-                d="M0,18 Q20,12 35,16 T70,8 T100,14"
-                strokeWidth="1.5"
-              />
-              <circle cx="70" cy="8" r="2.5" />
-            </svg>
+          <div className="metric-bottom telemetry-container">
+            <div className="telemetry-graph">
+              <svg className="telemetry-chart" viewBox="0 0 140 44" preserveAspectRatio="none" aria-hidden="true">
+                <defs>
+                  <linearGradient id="humidity-glow-gradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.32" />
+                    <stop offset="65%" stopColor="var(--primary)" stopOpacity="0.08" />
+                    <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+                {/* Horizontal Baseline & Comfort Band */}
+                <line x1="0" y1="36" x2="140" y2="36" className="telemetry-baseline" />
+                <line x1="42" y1="36" x2="84" y2="36" className="telemetry-comfort-band" />
+
+                {/* Grounded Area Fill */}
+                <path
+                  d={`M 0,36 L 0,${humStart} C 35,${humC1} 65,${humC2} 95,${humNodeY} C 115,${humC3} 130,${humEnd} 140,${humEnd} L 140,36 Z`}
+                  fill="url(#humidity-glow-gradient)"
+                  className="telemetry-area"
+                />
+
+                {/* Luminous Moisture Wave */}
+                <path
+                  d={`M 0,${humStart} C 35,${humC1} 65,${humC2} 95,${humNodeY} C 115,${humC3} 130,${humEnd} 140,${humEnd}`}
+                  className="telemetry-line telemetry-line-humidity"
+                />
+
+                {/* Active Reading Node */}
+                <circle cx="95" cy={humNodeY} r="5.5" className="telemetry-halo telemetry-halo-humidity" />
+                <circle cx="95" cy={humNodeY} r="2.5" className="telemetry-node telemetry-node-humidity" />
+              </svg>
+            </div>
+            <div className="telemetry-footer">
+              <span className="telemetry-tick">0%</span>
+              <span className="telemetry-range">Comfort 30–60%</span>
+              <span className="telemetry-tick">100%</span>
+            </div>
           </div>
         </div>
 
@@ -570,20 +619,50 @@ export function EnvironmentBentoGrid({
               </div>
               <span>Pressure</span>
             </div>
+            <CadenceInfoTooltip type="pressure" />
           </div>
           <div className="metric-value">
             {pressure}
             <small>hPa</small>
           </div>
           <div className="metric-status">{pressureStatus}</div>
-          <div className="metric-bottom">
-            <svg className="sparkline" viewBox="0 0 100 25" aria-hidden="true">
-              <path
-                d="M0,14 Q25,10 50,15 T85,11 T100,12"
-                strokeWidth="1.5"
-              />
-              <circle cx="85" cy="11" r="2.5" />
-            </svg>
+          <div className="metric-bottom telemetry-container">
+            <div className="telemetry-graph">
+              <svg className="telemetry-chart" viewBox="0 0 140 44" preserveAspectRatio="none" aria-hidden="true">
+                <defs>
+                  <linearGradient id="pressure-glow-gradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--sunlight)" stopOpacity="0.28" />
+                    <stop offset="65%" stopColor="var(--sunlight)" stopOpacity="0.07" />
+                    <stop offset="100%" stopColor="var(--sunlight)" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+                {/* Standard Sea-Level Isobar Reference (1013 hPa) & Baseline */}
+                <line x1="0" y1="20" x2="140" y2="20" className="telemetry-isobar" />
+                <line x1="0" y1="36" x2="140" y2="36" className="telemetry-baseline" />
+
+                {/* Grounded Area Fill */}
+                <path
+                  d={`M 0,36 L 0,${presStart} C 35,${presC1} 65,${presC2} 95,${presNodeY} C 115,${presC3} 130,${presEnd} 140,${presEnd} L 140,36 Z`}
+                  fill="url(#pressure-glow-gradient)"
+                  className="telemetry-area"
+                />
+
+                {/* Luminous Barometric Isobar Wave */}
+                <path
+                  d={`M 0,${presStart} C 35,${presC1} 65,${presC2} 95,${presNodeY} C 115,${presC3} 130,${presEnd} 140,${presEnd}`}
+                  className="telemetry-line telemetry-line-pressure"
+                />
+
+                {/* Active Reading Node */}
+                <circle cx="95" cy={presNodeY} r="5.5" className="telemetry-halo telemetry-halo-pressure" />
+                <circle cx="95" cy={presNodeY} r="2.5" className="telemetry-node telemetry-node-pressure" />
+              </svg>
+            </div>
+            <div className="telemetry-footer">
+              <span className="telemetry-tick">980 Low</span>
+              <span className="telemetry-range">1013 std isobar</span>
+              <span className="telemetry-tick">1040 High</span>
+            </div>
           </div>
         </div>
 

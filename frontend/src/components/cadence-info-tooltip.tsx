@@ -16,7 +16,8 @@ export type AliasTooltipType =
   | 'wind'
   | 'humidity'
   | 'visibility'
-  | 'cpcb-estimate';
+  | 'cpcb-estimate'
+  | 'pressure';
 
 interface TooltipDefinition {
   title: string;
@@ -75,6 +76,12 @@ const TOOLTIP_DEFINITIONS: Record<AliasTooltipType, TooltipDefinition> = {
     explanation:
       'Relative humidity influences how effectively your body cools through sweating. High humidity amplifies heat discomfort.',
     technicalMeasure: 'relative humidity percentage (%).',
+  },
+  pressure: {
+    title: 'Why is barometric pressure tracked?',
+    explanation:
+      'Atmospheric pressure measures air mass weight. Rising pressure usually brings clearer, calmer skies, while falling pressure indicates approaching weather fronts or storms.',
+    technicalMeasure: 'surface air pressure in hectopascals (hPa). Standard sea-level is 1013.25 hPa.',
   },
   visibility: {
     title: 'What affects visibility?',
