@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  cadence-exposure-router
+  AWS SAM Template for Cadence API (Flask)
+  Built with open-source AWS SAM CLI.
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowOrigin: "'*'"
+
+Parameters:
+  GeminiApiKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Google Gemini API key for task completion image verification
+
+Resources:
+  CadenceApiFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: backend/
+      Handler: app.handler # WSGI adapter handler in backend/app.py
+      Runtime: python3.11
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          GEMINI_API_KEY: !Ref GeminiApiKey
+      Events:
+        CadenceApiProxy:
+          Type: Api
+          Properties:
+            Path: /api/{proxy+}
+            Method: ANY
+        CadenceApiRoot:
+          Type: Api
+          Properties:
+            Path: /api
+            Method: ANY
+
+Outputs:
+  CadenceApiUrl:
+    Description: "API Gateway endpoint URL for Cadence API"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/api/"

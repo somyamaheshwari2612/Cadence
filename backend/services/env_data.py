@@ -293,6 +293,10 @@ def fetch_environmental_data(latitude, longitude, cached_at_utc=None):
     daily_sunrise_list = w_daily.get("sunrise", [])
     daily_sunset_list = w_daily.get("sunset", [])
 
+    # 5. Extract Live Current Conditions
+    w_curr = weather_data.get("current", {})
+    a_curr = aqi_data.get("current", {})
+
     def _iso_to_12h(iso_str: str) -> str:
         try:
             dt_obj = datetime.fromisoformat(iso_str)
@@ -306,10 +310,53 @@ def fetch_environmental_data(latitude, longitude, cached_at_utc=None):
 
     sunrise_12h = _iso_to_12h(daily_sunrise_list[0]) if daily_sunrise_list else "06:22 AM"
     sunset_12h = _iso_to_12h(daily_sunset_list[0]) if daily_sunset_list else "05:59 PM"
+    tomorrow_sunrise_12h = _iso_to_12h(daily_sunrise_list[1]) if len(daily_sunrise_list) > 1 else "06:23 AM"
+    tomorrow_sunset_12h = _iso_to_12h(daily_sunset_list[1]) if len(daily_sunset_list) > 1 else "05:58 PM"
 
-    # 5. Extract Live Current Conditions
-    w_curr = weather_data.get("current", {})
-    a_curr = aqi_data.get("current", {})
+    # Dynamic astronomical lunar phase and moonrise/moonset calculation
+    curr_time_str = w_curr.get("time")
+    try:
+        ref_date = datetime.fromisoformat(curr_time_str) if curr_time_str else datetime.now()
+    except Exception:
+        ref_date = datetime.now()
+
+    import math
+    ref_new_moon = datetime(2024, 1, 11, 11, 57)
+    diff_days = (ref_date - ref_new_moon).total_seconds() / 86400.0
+    cycle_pos = (diff_days % 29.530588) / 29.530588
+    illum_pct = round(50 * (1 - math.cos(2 * math.pi * cycle_pos)))
+
+    def _phase_name(pos: float) -> str:
+        if pos < 0.03 or pos >= 0.97: return "New Moon"
+        if pos < 0.22: return "Waxing Crescent"
+        if pos < 0.28: return "First Quarter"
+        if pos < 0.47: return "Waxing Gibbous"
+        if pos < 0.53: return "Full Moon"
+        if pos < 0.72: return "Waning Gibbous"
+        if pos < 0.78: return "Last Quarter"
+        return "Waning Crescent"
+
+    moon_phase_text = f"{_phase_name(cycle_pos)}\n({illum_pct}%)"
+
+    tomorrow_cycle_pos = ((diff_days + 1.0) % 29.530588) / 29.530588
+    tomorrow_illum_pct = round(50 * (1 - math.cos(2 * math.pi * tomorrow_cycle_pos)))
+    tomorrow_moon_phase_text = f"{_phase_name(tomorrow_cycle_pos)}\n({tomorrow_illum_pct}%)"
+
+    mr_mins = int((cycle_pos * 24.0 * 60.0 + 360) % 1440)
+    ms_mins = int((mr_mins + 740) % 1440)
+
+    def _mins_to_12h(mins: int) -> str:
+        h = (mins // 60) % 24
+        m = mins % 60
+        ampm = "AM" if h < 12 else "PM"
+        h12 = h % 12 or 12
+        return f"{h12:02d}:{m:02d} {ampm}"
+
+    moonrise_str = _mins_to_12h(mr_mins)
+    moonset_str = _mins_to_12h(ms_mins)
+    tomorrow_moonrise_str = _mins_to_12h(mr_mins + 51)
+    tomorrow_moonset_str = _mins_to_12h(ms_mins + 51)
+
     curr_temp = w_curr.get("temperature_2m")
     curr_apparent = w_curr.get("apparent_temperature")
     curr_code = w_curr.get("weather_code", 1)
@@ -351,6 +398,14 @@ def fetch_environmental_data(latitude, longitude, cached_at_utc=None):
         "pressure_status": "High" if (curr_pressure and curr_pressure > 1018) else "Low" if (curr_pressure and curr_pressure < 1008) else "Steady",
         "sunrise": sunrise_12h,
         "sunset": sunset_12h,
+        "tomorrow_sunrise": tomorrow_sunrise_12h,
+        "tomorrow_sunset": tomorrow_sunset_12h,
+        "moonrise": moonrise_str,
+        "moonset": moonset_str,
+        "tomorrow_moonrise": tomorrow_moonrise_str,
+        "tomorrow_moonset": tomorrow_moonset_str,
+        "moon_phase": moon_phase_text,
+        "tomorrow_moon_phase": tomorrow_moon_phase_text,
         "is_day": curr_is_day == 1,
         "is_night": curr_is_day == 0,
         "local_time": w_curr.get("time"),

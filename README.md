@@ -45,15 +45,19 @@ Cadence is a modern exposure-routing and environmental intelligence application 
 
 ```
 Cadence/
+├── api/                           # Vercel serverless entry point
+│   ├── app.py                     # Serverless WSGI adapter forwarding to backend.app
+│   └── requirements.txt           # Python dependencies for Vercel functions
+│
 ├── backend/                       # Python Flask atmospheric API
-│   ├── app.py                     # API endpoints (/api/schedule, /api/geocode, /api/national-context)
+│   ├── app.py                     # Core Flask API & AWS Lambda WSGI handler
 │   ├── services/                  # Business logic
 │   │   ├── cpcb_naqi.py           # Official CPCB NAQI calculation & breakpoints
 │   │   ├── scheduler.py           # India-Aware exposure scheduling engine
 │   │   ├── env_data.py            # Open-Meteo & CAMS weather/AQ ingestion
 │   │   ├── national_context.py    # 100 Indian cities batching & caching
 │   │   └── llm_engine.py          # Gemini Vision task verification
-│   ├── tests/                     # Automated test suite
+│   ├── tests/                     # Automated backend test suite
 │   ├── data/                      # Indian cities dataset
 │   └── requirements.txt
 │
@@ -62,10 +66,10 @@ Cadence/
 │   │   ├── assets/                # Atmospheric celestial artworks & moon photography
 │   │   ├── components/            # UI panels (WeatherDashboard, LocationSearchPopover, Planner)
 │   │   ├── data/                  # poetry_lines.json & local datasets
-│   │   ├── lib/                   # weather-artwork.ts, weather-poetry.ts, activity-planner.ts
+│   │   ├── lib/                   # weather-artwork.ts, weather-poetry.ts, activity-planner.ts, api.ts
 │   │   ├── routes/                # TanStack Router page definitions
 │   │   ├── styles.css             # Obsidian/emerald design tokens, scrollbars, and animations
-│   │   └── test/                  # Vitest condition & poetry test suites
+│   │   └── test/                  # Vitest condition, location & routing test suites
 │   ├── public/                    # Static assets (favicon.jpeg)
 │   ├── vite.config.ts
 │   └── package.json
@@ -76,14 +80,15 @@ Cadence/
 │   ├── instructions.txt           # Data provenance & API rules
 │   └── alias.txt                  # Terminal aliases
 │
-├── PROJECT_STATUS.md              # Full audit, architecture, and completed milestones
-├── app.py                         # Root launcher forwarding to backend
+├── template.yaml                  # Open-source AWS SAM template (Serverless Application Model)
+├── vercel.json                    # Vercel deployment rewrites & serverless function bundling
+├── requirements.txt               # Root Python dependencies for cloud runtimes
 └── README.md                      # This file
 ```
 
 ---
 
-## Running the Application
+## Running the Application Locally
 
 ### 1. Backend Server
 ```bash
@@ -91,7 +96,7 @@ cd backend
 python app.py
 # Runs on http://localhost:5000
 ```
-*(Or from the repository root: `python app.py`)*
+*(Or run the Vercel-compatible entry point: `python api/app.py`)*
 
 ### 2. Frontend Development Server
 ```bash
@@ -100,11 +105,54 @@ npm run dev -- --port 3001
 # Runs on http://localhost:3001
 ```
 
-### 3. Running Unit Tests
+---
+
+## Cloud Deployment
+
+### A. Vercel Deployment
+Cadence is configured out-of-the-box for Vercel via [`vercel.json`](vercel.json) and [`api/app.py`](api/app.py):
+1. Connect your repository to Vercel or run:
+   ```bash
+   vercel
+   ```
+2. Vercel automatically:
+   - Detects the frontend build in `frontend/`.
+   - Provisions `@vercel/python` Serverless Functions for `api/app.py`.
+   - Bundles backend calculation engines (`backend/**`).
+   - Installs dependencies from root `requirements.txt`.
+
+### B. AWS Serverless Deployment (AWS SAM CLI)
+Cadence includes an open-source AWS Serverless Application Model specification in [`template.yaml`](template.yaml):
+1. **Local API Testing**:
+   ```bash
+   sam build
+   sam local start-api --port 5000
+   ```
+2. **Deploy to AWS**:
+   ```bash
+   sam deploy --guided
+   ```
+   *Deploys the Flask API onto AWS Lambda and Amazon API Gateway with automated CORS and configurable Gemini API key parameter.*
+
+---
+
+## Running Tests
+
+### Frontend Test Suite (Vitest)
 ```bash
 cd frontend
 npm test
 ```
+*Runs all 42 unit and integration tests covering weather condition mapping, location search, debouncing, and exposure scheduler logic.*
+
+### Backend Test Suite (Python)
+```bash
+cd backend
+python tests/test_scheduler.py
+python tests/test_env_data.py
+python tests/test_national_context.py
+```
+*Validates Open-Meteo telemetry ingestion, India CPCB breakpoint mathematics, and exposure router optimization.*
 
 ---
 

@@ -1,0 +1,13 @@
+{
+    "functions": {
+        "api/app.py": {
+            "includeFiles": "backend/**"
+        }
+    },
+    "rewrites": [
+        {
+            "source": "/api/(.*)",
+            "destination": "/api/app.py"
+        }
+    ]
+}

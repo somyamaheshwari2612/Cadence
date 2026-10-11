@@ -1,5 +1,5 @@
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 try:
     from services.cpcb_naqi import calculate_pm25_subindex, get_cpcb_category
@@ -231,13 +231,18 @@ def experimental_product_score(temp, pm25, rain_prob=0, hour_of_day=None, is_str
     return round(temp_component + pm25_component + rain_component + midday_penalty, 2)
 
 
-def is_slot_inside_availability(slot_start_dt, duration_minutes, avail_start_m, avail_end_m):
+def is_slot_inside_availability(slot_start_dt, duration_minutes, avail_start_m, avail_end_m, first_slot_date=None, current_local_minute=None):
     """
     Checks if a candidate slot strictly fits inside the user's availability window.
     avail_start_m and avail_end_m are minute offsets from midnight (0 to 1440).
     """
     start_m = slot_start_dt.hour * 60 + slot_start_dt.minute
     end_m = start_m + duration_minutes
+
+    # Guardrail: If slot is on today and start_m is before current local minute, it has already passed
+    if first_slot_date and current_local_minute is not None and slot_start_dt.date() == first_slot_date:
+        if start_m < current_local_minute:
+            return False
 
     if avail_start_m <= avail_end_m:
         # Standard daytime window within same day (e.g., 4:00 AM to 7:30 AM -> 240 to 450)
@@ -345,6 +350,8 @@ def find_optimal_schedule(
             break
 
     first_slot_dt = datetime.fromisoformat(env_data[start_idx]["time"]) if start_idx < len(env_data) else datetime.fromisoformat(env_data[0]["time"])
+    first_slot_date = first_slot_dt.date()
+    current_local_minute = first_slot_dt.hour * 60 + first_slot_dt.minute
     
     # -----------------------------------------------------------------
     # Step 2: Form Candidate Continuous Blocks within Availability Window
@@ -387,10 +394,16 @@ def find_optimal_schedule(
             
         slot_start_dt = datetime.fromisoformat(block_slots[0]["time"])
         slot_end_dt = slot_start_dt + timedelta(minutes=duration_minutes)
+
+        # Guardrail: Never evaluate or recommend candidate slots that have already started/passed today
+        if slot_start_dt.date() == first_slot_date:
+            slot_start_m = slot_start_dt.hour * 60 + slot_start_dt.minute
+            if slot_start_m < current_local_minute:
+                continue
         
         # Check if strictly inside user's available window using minute offsets
         is_inside_availability = is_slot_inside_availability(
-            slot_start_dt, duration_minutes, avail_start_m, avail_end_m
+            slot_start_dt, duration_minutes, avail_start_m, avail_end_m, first_slot_date, current_local_minute
         )
         
         # Extract hourly values
@@ -568,9 +581,9 @@ def find_optimal_schedule(
         }
     
     # -----------------------------------------------------------------
-    # Step 4: Decision Timeline Construction (Next 24 Hours from Current Time)
+    # Step 4: Decision Timeline Construction (Next 48 Hours from Current Time)
     # -----------------------------------------------------------------
-    timeline_end_idx = min(len(env_data), start_idx + 24)
+    timeline_end_idx = min(len(env_data), start_idx + 48)
     decision_timeline = []
     current_conditions = env_data_result.get("current_conditions", {})
     
@@ -669,6 +682,29 @@ def find_optimal_schedule(
             candidate_blocks,
             key=lambda x: (len(x["preference_violations"]), x["experimental_product_score"])
         )[0]
+
+    # Guardrail: If user requested a daytime window that has already concluded today
+    is_window_past_today = (avail_start_m <= avail_end_m and avail_end_m <= current_local_minute)
+    if is_window_past_today and not schedule_blocks:
+        return {
+            "status": "window_already_passed",
+            "outcome_type": "past_window",
+            "outcome_label": "SELECTED TIME HAS PASSED",
+            "message": f"Your selected availability window ({avail_start_str} – {avail_end_str}) has already passed today.",
+            "current_time_formatted": format_time_12h(first_slot_dt),
+            "window_already_passed_today": True,
+            "fallback_enabled": enable_fallback,
+            "schedule_window": None,
+            "weather_alternative": best_overall,
+            "has_dual_recommendation": False,
+            "decision_timeline": decision_timeline,
+            "total_candidate_blocks": len(candidate_blocks),
+            "general_exposure_reduction_options": GENERAL_EXPOSURE_REDUCTION_OPTIONS,
+            "official_guidance": OFFICIAL_GUIDANCE,
+            "model_caveat": MODEL_CAVEAT,
+            "current_conditions": current_conditions,
+            "metadata": metadata
+        }
 
     # -----------------------------------------------------------------
     # Outcome 1: Preference-Qualified Option Inside User's Schedule

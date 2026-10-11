@@ -345,5 +345,126 @@ def verify_task():
     except Exception as e:
         return corsify_response(jsonify({"error": str(e)})), 500
 
+
+def handler(event, context=None):
+    """
+    AWS Lambda / SAM WSGI adapter handler.
+    Seamlessly adapts API Gateway REST (v1) and HTTP API (v2) proxy events
+    to the Flask WSGI application with full CORS support.
+    """
+    # 1. Check for installed AWS serverless WSGI adapters
+    try:
+        import serverless_wsgi
+        return serverless_wsgi.handle_request(app, event, context)
+    except ImportError:
+        pass
+
+    try:
+        import apig_wsgi
+        return apig_wsgi.make_lambda_handler(app)(event, context)
+    except ImportError:
+        pass
+
+    # 2. Built-in zero-dependency PEP 3333 WSGI bridge for AWS Lambda / SAM
+    from urllib.parse import urlencode
+
+    # Detect HTTP method (v1 vs v2)
+    method = event.get('httpMethod')
+    if not method and 'requestContext' in event and 'http' in event['requestContext']:
+        method = event['requestContext']['http'].get('method', 'GET')
+    method = (method or 'GET').upper()
+
+    # Detect Path (v1 vs v2)
+    path = event.get('path') or event.get('rawPath') or '/'
+
+    # Detect Query String
+    qs = event.get('rawQueryString')
+    if qs is None:
+        params = event.get('queryStringParameters') or {}
+        qs = urlencode(params)
+
+    # Process Body (decode base64 if needed)
+    body_bytes = b''
+    raw_body = event.get('body')
+    if raw_body:
+        if event.get('isBase64Encoded', False):
+            body_bytes = base64.b64decode(raw_body)
+        elif isinstance(raw_body, str):
+            body_bytes = raw_body.encode('utf-8')
+        elif isinstance(raw_body, bytes):
+            body_bytes = raw_body
+
+    headers = event.get('headers') or {}
+    environ = {
+        'REQUEST_METHOD': method,
+        'SCRIPT_NAME': '',
+        'PATH_INFO': path,
+        'QUERY_STRING': qs,
+        'SERVER_NAME': 'localhost',
+        'SERVER_PORT': '443',
+        'SERVER_PROTOCOL': 'HTTP/1.1',
+        'wsgi.version': (1, 0),
+        'wsgi.url_scheme': headers.get('x-forwarded-proto', headers.get('X-Forwarded-Proto', 'https')),
+        'wsgi.input': io.BytesIO(body_bytes),
+        'wsgi.errors': sys.stderr,
+        'wsgi.multithread': False,
+        'wsgi.multiprocess': False,
+        'wsgi.run_once': False,
+        'CONTENT_LENGTH': str(len(body_bytes)),
+    }
+
+    content_type = headers.get('content-type') or headers.get('Content-Type')
+    if content_type:
+        environ['CONTENT_TYPE'] = content_type
+
+    for key, value in headers.items():
+        key_upper = key.upper().replace('-', '_')
+        if key_upper not in ('CONTENT_TYPE', 'CONTENT_LENGTH'):
+            environ[f'HTTP_{key_upper}'] = str(value)
+
+    response_status = [200]
+    response_headers = []
+
+    def start_response(status, resp_headers, exc_info=None):
+        try:
+            status_code = int(status.split(' ', 1)[0])
+        except Exception:
+            status_code = 200
+        response_status[0] = status_code
+        response_headers.extend(resp_headers)
+
+    response_iter = app(environ, start_response)
+    response_body = b''.join(response_iter)
+    if hasattr(response_iter, 'close'):
+        response_iter.close()
+
+    resp_headers_dict = {}
+    for h_name, h_val in response_headers:
+        resp_headers_dict[h_name] = h_val
+
+    # Ensure CORS origin is always set
+    if 'Access-Control-Allow-Origin' not in resp_headers_dict:
+        resp_headers_dict['Access-Control-Allow-Origin'] = '*'
+    if 'Access-Control-Allow-Headers' not in resp_headers_dict:
+        resp_headers_dict['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    if 'Access-Control-Allow-Methods' not in resp_headers_dict:
+        resp_headers_dict['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+
+    try:
+        body_str = response_body.decode('utf-8')
+        is_b64 = False
+    except UnicodeDecodeError:
+        body_str = base64.b64encode(response_body).decode('ascii')
+        is_b64 = True
+
+    return {
+        'statusCode': response_status[0],
+        'headers': resp_headers_dict,
+        'body': body_str,
+        'isBase64Encoded': is_b64,
+    }
+
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
+
