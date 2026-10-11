@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import {
   Sun,
+  Moon,
+  CloudMoon,
   CloudSun,
   Cloud,
   Droplet,
@@ -21,6 +23,7 @@ import {
   type ActivityBlock,
   formatTime,
 } from '@/lib/activity-planner';
+import { parseTimeStringToMinutes } from '@/lib/weather-artwork';
 import { WeatherSelect } from '@/components/weather-select';
 
 interface HourlyTimelineProps {
@@ -28,6 +31,8 @@ interface HourlyTimelineProps {
   preferences: Preferences;
   block: ActivityBlock | undefined;
   alternative: boolean;
+  sunrise?: string;
+  sunset?: string;
 }
 
 export function HourlyTimeline({
@@ -35,6 +40,8 @@ export function HourlyTimeline({
   preferences,
   block,
   alternative,
+  sunrise,
+  sunset,
 }: HourlyTimelineProps) {
   const [coverage, setCoverage] = useState('Today');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -206,8 +213,13 @@ export function HourlyTimeline({
             if ((h.rain ?? 0) > 20) {
               return <Droplet className="w-5 h-5 text-[var(--mist)]" />;
             }
-            // Day vs Night
-            if (h.hour >= 6 && h.hour <= 17) {
+            // Day vs Night (using location's sunrise and sunset)
+            const sunriseMin = parseTimeStringToMinutes(sunrise) ?? 360;
+            const sunsetMin = parseTimeStringToMinutes(sunset) ?? 1080;
+            const hMin = (h.hour % 24) * 60;
+            const isDayHour = hMin >= sunriseMin && hMin < sunsetMin;
+
+            if (isDayHour) {
               if (code !== undefined && code <= 1) {
                 return <Sun className="w-5 h-5 text-[var(--sunlight)]" />;
               }
@@ -215,8 +227,15 @@ export function HourlyTimeline({
                 return <Sun className="w-5 h-5 text-[var(--sunlight)]" />;
               }
               return <CloudSun className="w-5 h-5 text-[var(--sunlight)]" />;
+            } else {
+              if (code !== undefined && code <= 1) {
+                return <Moon className="w-5 h-5 text-[var(--foreground)]" />;
+              }
+              if (cond.includes('clear') || cond.includes('moon') || cond.includes('night')) {
+                return <Moon className="w-5 h-5 text-[var(--foreground)]" />;
+              }
+              return <CloudMoon className="w-5 h-5 text-[var(--mist)]" />;
             }
-            return <Cloud className="w-5 h-5 text-[var(--mist)]" />;
           };
 
           return (
@@ -332,7 +351,7 @@ export function HourlyTimeline({
           </p>
         </div>
         <span className="text-xs text-[var(--muted-foreground)]">
-          15:00–16:00 · forecast data unavailable
+          3:00–4:00 PM · forecast data unavailable
         </span>
       </div>
     </section>

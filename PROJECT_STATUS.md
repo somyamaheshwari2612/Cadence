@@ -39,10 +39,20 @@ The application features:
 ### 1.2 Living Weather Poetry Engine (`frontend/src/lib/weather-poetry.ts` & `frontend/src/data/poetry_lines.json`)
 - **Dataset Integration**:
   - `poetry_lines.json` located in `frontend/src/data/poetry_lines.json`.
-  - Comprehensive condition mapping covering Clear Sky, Mainly Clear, Partly Cloudy, Overcast, Rain, Rain Showers, Drizzle, Heavy Rain, Thunderstorm, Snow, Fog, Windy, Breezy, Hazy, Dusty, Smoky, and Night Moon states.
-- **Local Time Day vs. Night Transitions**:
-  - **Day**: Evaluated from **sunrise to sunset** (`curMin >= sunriseMin && curMin < sunsetMin`).
-  - **Night**: Evaluated from **sunset to sunrise** (`curMin >= sunsetMin || curMin < sunriseMin`).
+  - Comprehensive condition mapping covering Clear Sky, Mainly Clear, Partly Cloudy, Cloudy (standardized from Overcast), Rain, Rain Showers, Drizzle, Heavy Rain, Thunderstorm, Snow, Fog, Windy, Breezy, Hazy, Dusty, Smoky, and Night Moon states.
+- **Overcast $\to$ Cloudy Standardization**:
+  - Open-Meteo WMO code 3 and weather descriptors now consistently output **Cloudy** (as well as **Breezy & Cloudy** and **Freezing & Cloudy**), eliminating ambiguous "Overcast" terminology across backend, frontend sanitizers, and poetry.
+- **Atomic Dashboard Location Synchronization**:
+  - Changing city or detecting GPS triggers an asynchronous telemetry fetch with a subtle updating indicator while preserving current dashboard telemetry.
+  - The location name updates in the dashboard *only* when the new location's forecast telemetry and decision models are resolved and ready to render simultaneously, preventing confusion from mismatched state.
+- **Country-Specific Local Time Day vs. Night Transitions**:
+  - Automatically evaluates sun vs. moon artwork, poetry, and icons based on the **target country/location's own local time** (using IANA timezone and UTC offset), rather than the client browser's clock.
+  - **Day**: Evaluated from **sunrise to sunset** (`curMin >= sunriseMin && curMin < sunsetMin`) $\to$ **Sun** artwork, daytime poetry, golden sun icons.
+  - **Night**: Evaluated from **sunset to sunrise** (`curMin >= sunsetMin || curMin < sunriseMin`) $\to$ **Moon** artwork (clear/cloudy/full/no-moon), night poetry, luminous moon icons.
+- **Unified 12-Hour System**:
+  - Completely transitioned from confusing 24-hour clocks to clear 12-hour AM/PM formatting across the entire app:
+  - Availability window inputs use 12-hour selectors (`6:00 AM`, `9:00 PM`).
+  - Hourly forecast cards, decision timeline, and trust metadata display 12-hour timestamps (`11:42 AM IST`, `4:00 PM BST`, `3:00–4:00 PM`).
 - **Temperature Tier Differentiation**:
   - **Freezing** ($\le 0^\circ\text{C}$): Frost and biting cold morning couplets.
   - **Cold** ($1\text{–}10^\circ\text{C}$): Crisp air and bundle-up couplets.

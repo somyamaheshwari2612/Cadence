@@ -132,5 +132,50 @@ describe('Weather Artwork & Condition Engine', () => {
     const hotNightPoem = getWeatherPoem('Clear Sky', 34, { isNight: true });
     expect(hotNightPoem.line1).toContain('The earth is still holding the heat');
   });
+
+  it('evaluates sun vs moon based on target country local time, not user browser clock', () => {
+    // Simulated UTC instant: 2026-10-10T15:00:00Z
+    // In India (UTC+5:30), this is 20:30 (8:30 PM, NIGHT)
+    // In London (UTC+1 BST), this is 16:00 (4:00 PM, DAY - sunrise 07:18 AM, sunset 06:18 PM)
+    // In New York (UTC-4 EDT), this is 11:00 (11:00 AM, DAY - sunrise 07:02 AM, sunset 06:23 PM)
+    // In Tokyo (UTC+9 JST), this is 00:00 (12:00 AM midnight, NIGHT - sunrise 05:43 AM, sunset 05:12 PM)
+    const utcDate = new Date('2026-10-10T15:00:00Z');
+
+    // 1. London: London's own time is 4:00 PM (sunrise 07:18 AM, sunset 06:18 PM) -> DAY -> SUN
+    const londonArtwork = getWeatherArtworkForCondition('Clear Sky', 18, {
+      timezone: 'Europe/London',
+      date: utcDate,
+      sunrise: '07:18 AM',
+      sunset: '06:18 PM',
+    });
+    expect(londonArtwork).toBe(weatherArtwork.sunny);
+
+    // 2. New York: New York's own time is 11:00 AM -> DAY -> SUN
+    const nyArtwork = getWeatherArtworkForCondition('Clear Sky', 20, {
+      timezone: 'America/New_York',
+      date: utcDate,
+      sunrise: '07:02 AM',
+      sunset: '06:23 PM',
+    });
+    expect(nyArtwork).toBe(weatherArtwork.sunny);
+
+    // 3. Tokyo: Tokyo's own time is midnight 12:00 AM -> NIGHT -> MOON
+    const tokyoArtwork = getWeatherArtworkForCondition('Clear Sky', 16, {
+      timezone: 'Asia/Tokyo',
+      date: utcDate,
+      sunrise: '05:43 AM',
+      sunset: '05:12 PM',
+    });
+    expect(tokyoArtwork).toBe(weatherArtwork.moonClear);
+
+    // 4. India: India's own time is 8:30 PM (after 05:59 PM sunset) -> NIGHT -> MOON
+    const indiaArtwork = getWeatherArtworkForCondition('Clear Sky', 26, {
+      timezone: 'Asia/Kolkata',
+      date: utcDate,
+      sunrise: '06:22 AM',
+      sunset: '05:59 PM',
+    });
+    expect(indiaArtwork).toBe(weatherArtwork.moonClear);
+  });
 });
 

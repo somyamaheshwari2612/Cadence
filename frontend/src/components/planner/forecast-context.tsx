@@ -4,6 +4,7 @@ import {
   getWeatherArtworkForCondition,
   getWeatherPoem,
   parseTimeStringToMinutes,
+  isNightTime,
 } from '@/lib/weather-artwork';
 import moonImage from '@/assets/moon-clear-night.jpg';
 
@@ -19,6 +20,12 @@ export interface CurrentConditions {
   humidity?: number;
   sunrise?: string;
   sunset?: string;
+  isNight?: boolean;
+  isDay?: boolean;
+  timezone?: string;
+  timezoneAbbr?: string;
+  utcOffsetSeconds?: number;
+  localTime?: string;
 }
 
 export function ForecastContext({ conditions }: { conditions?: CurrentConditions }) {
@@ -72,23 +79,27 @@ export function ForecastContext({ conditions }: { conditions?: CurrentConditions
       <div className="context-layout">
         <div className="context-weather">
           {(() => {
-            const isNight = (() => {
-              if (typeof window === 'undefined') return false;
-              const now = new Date();
-              const curMin = now.getHours() * 60 + now.getMinutes();
-              const sunsetMin = parseTimeStringToMinutes(conditions?.sunset) ?? 1080;
-              const sunriseMin = parseTimeStringToMinutes(conditions?.sunrise) ?? 360;
-              return curMin >= sunsetMin || curMin < sunriseMin;
-            })();
+            const isNight = conditions?.isNight !== undefined
+              ? conditions.isNight
+              : isNightTime({
+                  sunset: conditions?.sunset,
+                  sunrise: conditions?.sunrise,
+                  timezone: conditions?.timezone,
+                  utcOffsetSeconds: conditions?.utcOffsetSeconds,
+                });
             const artwork = getWeatherArtworkForCondition(conditions?.condition, conditions?.modeledTemperature, {
               isNight,
               sunset: conditions?.sunset,
               sunrise: conditions?.sunrise,
+              timezone: conditions?.timezone,
+              utcOffsetSeconds: conditions?.utcOffsetSeconds,
             });
             const poem = getWeatherPoem(conditions?.condition, conditions?.modeledTemperature, {
               isNight,
               sunset: conditions?.sunset,
               sunrise: conditions?.sunrise,
+              timezone: conditions?.timezone,
+              utcOffsetSeconds: conditions?.utcOffsetSeconds,
             });
             return (
               <>
@@ -154,8 +165,25 @@ export function ForecastTrust({
 }) {
   const latStr = coords ? `${coords.latitude.toFixed(2)}° N` : '27.49° N';
   const lngStr = coords ? `${coords.longitude.toFixed(2)}° E` : '77.67° E';
+  const tz = metadata?.timezone;
+  const tzAbbr = metadata?.timezone_abbreviation || (tz ? '' : 'IST');
   const retrievedTime = metadata?.retrieval_timestamp_utc
-    ? new Date(metadata.retrieval_timestamp_utc).toLocaleString()
+    ? (() => {
+        const d = new Date(metadata.retrieval_timestamp_utc);
+        const timeOpts: Intl.DateTimeFormatOptions = {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+          ...(tz ? { timeZone: tz } : {}),
+        };
+        const dateOpts: Intl.DateTimeFormatOptions = {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          ...(tz ? { timeZone: tz } : {}),
+        };
+        return `${d.toLocaleDateString('en-US', dateOpts)} · ${d.toLocaleTimeString('en-US', timeOpts)}${tzAbbr ? ` ${tzAbbr}` : ''}`;
+      })()
     : '10 Oct 2026 · 11:42 AM IST';
 
   return (

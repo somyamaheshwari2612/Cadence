@@ -3,6 +3,7 @@ import {
   MapPin,
   Sun,
   Moon,
+  CloudMoon,
   Wind,
   Droplets,
   Thermometer,
@@ -28,6 +29,8 @@ import {
   getWeatherArtworkForCondition,
   getWeatherPoem,
   parseTimeStringToMinutes,
+  isNightTime,
+  getSolarStage,
 } from '@/lib/weather-artwork';
 export { getWeatherArtworkForCondition, getWeatherPoem };
 import { CadenceInfoTooltip } from '@/components/cadence-info-tooltip';
@@ -50,6 +53,12 @@ export interface WeatherDashboardData {
   moonrise: string;
   moonset: string;
   moonPhaseText: string;
+  isNight?: boolean;
+  isDay?: boolean;
+  timezone?: string;
+  timezoneAbbr?: string;
+  utcOffsetSeconds?: number;
+  localTime?: string;
   aqi: number;
   aqiStatus: string;
   pm25?: number;
@@ -72,7 +81,7 @@ export interface WeatherDashboardData {
   hourly: Array<{
     label: string;
     temp: number;
-    icon: 'sunny' | 'partly' | 'cloudy' | 'rainy' | 'snowy' | 'windy' | 'thunderstorm';
+    icon: 'sunny' | 'moon' | 'partly' | 'partly-moon' | 'cloudy' | 'rainy' | 'snowy' | 'windy' | 'thunderstorm';
   }>;
 }
 
@@ -107,14 +116,17 @@ export function HeroWeatherCard({
   const condition = data?.condition ?? 'Partly Cloudy';
   const updatedTime = data?.updatedTime ?? 'Last updated · 10 Oct 2026, 11:42 AM';
 
-  // Determine if it is nighttime from sunset/sunrise or local clock
+  // Determine if it is nighttime from sunset/sunrise using the target location's OWN local time
   const currentIsNight = (() => {
-    if (typeof window === 'undefined') return false;
-    const now = new Date();
-    const curMin = now.getHours() * 60 + now.getMinutes();
-    const sunsetMin = parseTimeStringToMinutes(data?.sunset) ?? 1080; // 6:00 PM default
-    const sunriseMin = parseTimeStringToMinutes(data?.sunrise) ?? 360; // 6:00 AM default
-    return curMin >= sunsetMin || curMin < sunriseMin;
+    if (data?.isNight !== undefined) return data.isNight;
+    if (data?.isDay !== undefined) return !data.isDay;
+
+    return isNightTime({
+      sunset: data?.sunset,
+      sunrise: data?.sunrise,
+      timezone: data?.timezone,
+      utcOffsetSeconds: data?.utcOffsetSeconds,
+    });
   })();
 
   const artwork = getWeatherArtworkForCondition(condition, temp, {
@@ -122,12 +134,16 @@ export function HeroWeatherCard({
     sunset: data?.sunset,
     sunrise: data?.sunrise,
     moonPhase: data?.moonPhaseText,
+    timezone: data?.timezone,
+    utcOffsetSeconds: data?.utcOffsetSeconds,
   });
   const poem = getWeatherPoem(condition, temp, {
     isNight: currentIsNight,
     sunset: data?.sunset,
     sunrise: data?.sunrise,
     moonPhase: data?.moonPhaseText,
+    timezone: data?.timezone,
+    utcOffsetSeconds: data?.utcOffsetSeconds,
   });
   const coarse = coords?.accuracy !== undefined && coords.accuracy > 5000;
 
@@ -244,10 +260,6 @@ export function HeroWeatherCard({
 
         <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
           <p className="updated text-xs text-[var(--muted-foreground)] m-0">{updatedTime}</p>
-          <span className="text-[11px] text-[var(--muted-foreground)] opacity-60">·</span>
-          <span className="text-[11px] text-[var(--muted-foreground)] flex items-center gap-1">
-            <Clock3 className="w-3 h-3 text-[var(--primary)]" /> Next 24 hours
-          </span>
           {hasDataIssue && (
             <span className="text-[10px] text-[var(--caution)] bg-[var(--caution-surface)] px-2 py-0.5 rounded-full border border-[var(--caution-border)]">
               Partial forecast data
@@ -290,6 +302,13 @@ export function SunMoonCard({
   const moonrise = data?.moonrise ?? '02:17 AM';
   const moonset = data?.moonset ?? '03:48 PM';
 
+  const solarStage = getSolarStage({
+    sunrise,
+    sunset,
+    timezone: data?.timezone,
+    utcOffsetSeconds: data?.utcOffsetSeconds,
+  });
+
   const activeMoonImage = (() => {
     const phaseText = (data?.moonPhaseText || '').toLowerCase();
     if (phaseText.includes('full')) return weatherArtwork.moonFull.src;
@@ -297,6 +316,11 @@ export function SunMoonCard({
     if (phaseText.includes('cloud')) return weatherArtwork.moonCloudy.src;
     return weatherArtwork.moonClear.src;
   })();
+
+  const rawMoonText = data?.moonPhaseText || 'Waning Gibbous\n(72%)';
+  const moonLines = rawMoonText.split('\n');
+  const moonPhaseName = moonLines[0] || 'Waning Gibbous';
+  const moonPhaseDetail = moonLines[1] || '(72%)';
 
   return (
     <section className={`panel celestial ${className}`} aria-label="Sun and Moon">
@@ -314,25 +338,34 @@ export function SunMoonCard({
       </div>
 
       <div className="celestial-body">
-        {/* Sun Section */}
+        {/* Sun Section (Equal 50% space) */}
         <div className="sun-section">
-          <div className="celestial-title">
-            <Sun aria-hidden="true" /> Sun
+          <div className="celestial-events-col">
+            <div className="celestial-title">
+              <Sun aria-hidden="true" /> Sun
+            </div>
+            <div className="event">
+              <small>Sunrise</small>
+              <strong>{sunrise}</strong>
+            </div>
+            <div className="event">
+              <small>Sunset</small>
+              <strong>{sunset}</strong>
+            </div>
           </div>
-          <div className="sun-arc" aria-hidden="true" />
-          <div className="event">
-            <small>Sunrise</small>
-            <strong>{sunrise}</strong>
-          </div>
-          <div className="event">
-            <small>Sunset</small>
-            <strong>{sunset}</strong>
+          <div className="celestial-display sun-display">
+            <img className="celestial-image sun-image" src={solarStage.src} alt={solarStage.label} />
+            <p>
+              {solarStage.label}
+              <br />
+              <strong>{solarStage.detail}</strong>
+            </p>
           </div>
         </div>
 
-        {/* Moon Section */}
+        {/* Moon Section (Equal 50% space) */}
         <div className="moon-section">
-          <div>
+          <div className="celestial-events-col">
             <div className="celestial-title">
               <Moon aria-hidden="true" /> Moon
             </div>
@@ -345,12 +378,12 @@ export function SunMoonCard({
               <strong>{moonset}</strong>
             </div>
           </div>
-          <div className="moon-display">
-            <img className="moon-image" src={activeMoonImage} alt="Moon Phase" />
+          <div className="celestial-display moon-display">
+            <img className="celestial-image moon-image" src={activeMoonImage} alt="Moon Phase" />
             <p>
-              Waning Gibbous
+              {moonPhaseName}
               <br />
-              <strong>(72%)</strong>
+              <strong>{moonPhaseDetail}</strong>
             </p>
           </div>
         </div>
@@ -641,6 +674,10 @@ export function TodaysForecastCard({
               <div className={`forecast-icon ${pt.icon}`}>
                 {pt.icon === 'sunny' ? (
                   <Sun aria-hidden="true" />
+                ) : pt.icon === 'moon' ? (
+                  <Moon aria-hidden="true" />
+                ) : pt.icon === 'partly-moon' ? (
+                  <CloudMoon aria-hidden="true" />
                 ) : pt.icon === 'partly' ? (
                   <CloudSun aria-hidden="true" />
                 ) : pt.icon === 'rainy' ? (

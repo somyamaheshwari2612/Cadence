@@ -2,7 +2,7 @@ import { Footprints, Bike, PersonStanding, Briefcase, SlidersHorizontal, ArrowRi
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { WeatherSelect } from '@/components/weather-select';
-import { type Preferences, INDIA_ACTIVITY_PRESETS, getIndiaCpcbCategory, getIndiaHeatBand } from '@/lib/activity-planner';
+import { type Preferences, INDIA_ACTIVITY_PRESETS, getIndiaCpcbCategory, getIndiaHeatBand, formatTime } from '@/lib/activity-planner';
 import { CadenceInfoTooltip } from '@/components/cadence-info-tooltip';
 import { useState } from 'react';
 
@@ -14,16 +14,36 @@ const activities = [
   { name: 'Custom outdoor task', icon: SlidersHorizontal },
 ];
 
+const TIME_STEPS = Array.from({ length: 48 }, (_, i) => i * 30);
+
+function buildTimeOptions(selectedValue: number) {
+  const steps = [...TIME_STEPS];
+  if (!steps.includes(selectedValue)) {
+    steps.push(selectedValue);
+    steps.sort((a, b) => a - b);
+  }
+  const displayMap: Record<string, string> = {};
+  steps.forEach(m => {
+    displayMap[String(m)] = formatTime(m);
+  });
+  return {
+    options: steps.map(String),
+    displayMap,
+  };
+}
+
 export function ActivityForm({
   preferences,
   onChange,
   onSubmit,
   changed,
+  timezoneAbbr,
 }: {
   preferences: Preferences;
   onChange: (value: Preferences) => void;
   onSubmit: () => void;
   changed: boolean;
+  timezoneAbbr?: string;
 }) {
   const [custom, setCustom] = useState(false);
   const update = (key: keyof Preferences, value: number | string | boolean) =>
@@ -47,12 +67,9 @@ export function ActivityForm({
     }
   };
 
-  const timeValue = (value: number) =>
-    `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
-  const parseTime = (value: string) => {
-    const [h, m] = value.split(':').map(Number);
-    return (h ?? 0) * 60 + (m ?? 0);
-  };
+  const startData = buildTimeOptions(preferences.start);
+  const endData = buildTimeOptions(preferences.end);
+
   const valid =
     preferences.duration > 0 && preferences.end - preferences.start >= preferences.duration;
 
@@ -129,21 +146,25 @@ export function ActivityForm({
           </div>
           <div className="planner-field availability-field">
             <label>
-              Available window <span>Today · IST</span>
+              Available window <span>Today · {timezoneAbbr || 'Local'}</span>
             </label>
-            <div className="time-inputs">
-              <input
-                type="time"
-                aria-label="Availability start"
-                value={timeValue(preferences.start)}
-                onChange={e => update('start', parseTime(e.target.value))}
+            <div className="time-inputs 12h-time-selects">
+              <WeatherSelect
+                label="Availability start time"
+                variant="field"
+                value={String(preferences.start)}
+                options={startData.options}
+                displayOptions={startData.displayMap}
+                onValueChange={v => update('start', Number(v))}
               />
-              <span>–</span>
-              <input
-                type="time"
-                aria-label="Availability end"
-                value={timeValue(preferences.end)}
-                onChange={e => update('end', parseTime(e.target.value))}
+              <span className="text-[var(--muted-foreground)] font-mono">–</span>
+              <WeatherSelect
+                label="Availability end time"
+                variant="field"
+                value={String(preferences.end)}
+                options={endData.options}
+                displayOptions={endData.displayMap}
+                onValueChange={v => update('end', Number(v))}
               />
             </div>
           </div>

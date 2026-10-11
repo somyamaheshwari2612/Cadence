@@ -1,7 +1,7 @@
 import { Check, ArrowUpRight, ChevronDown, Wind, Thermometer, Droplet, CircleHelp, TriangleAlert, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { type Decision, type Preferences, formatTime } from '@/lib/activity-planner';
-import { weatherArtwork, getWeatherArtworkForCondition } from '@/lib/weather-artwork';
+import { weatherArtwork, getWeatherArtworkForCondition, isNightTime } from '@/lib/weather-artwork';
 import { CadenceInfoTooltip } from '@/components/cadence-info-tooltip';
 
 export function BestTimeResult({
@@ -11,6 +11,8 @@ export function BestTimeResult({
   onAlternative,
   onEdit,
   condition,
+  sunrise,
+  sunset,
 }: {
   decision: Decision;
   preferences: Preferences;
@@ -18,6 +20,8 @@ export function BestTimeResult({
   onAlternative: () => void;
   onEdit: () => void;
   condition?: string;
+  sunrise?: string;
+  sunset?: string;
 }) {
   const alternative = decision.state === 'no-slot' && showAlternative;
   const block = decision.state === 'qualified' ? decision.block : alternative && decision.state === 'no-slot' ? decision.alternative : undefined;
@@ -30,10 +34,18 @@ export function BestTimeResult({
     : 'No slot meets your preferences today';
 
   const whyBullets = alternative ? block?.whyThisAlternative : block?.whyThisWindow;
-  const isBlockNight = block !== undefined ? (block.start >= 1080 || block.start < 360) : undefined;
+  const isBlockNight = block !== undefined
+    ? isNightTime({
+        timeMinutes: block.start,
+        sunrise,
+        sunset,
+      })
+    : undefined;
   const artwork = getWeatherArtworkForCondition(condition || 'Partly Cloudy', block?.apparent ?? 28, {
     isNight: isBlockNight,
     timeMinutes: block?.start,
+    sunrise,
+    sunset,
   });
 
   return (

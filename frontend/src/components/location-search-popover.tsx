@@ -340,36 +340,6 @@ export function LocationSearchPopover({
               </div>
             )}
 
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted-foreground)]" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={handleSearchChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Search city, town or district in India..."
-                className="w-full pl-9 pr-8 py-2 bg-[var(--background)] border border-[var(--border)] rounded-md text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)]"
-                autoComplete="off"
-                spellCheck="false"
-              />
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuery('');
-                    setResults([]);
-                    if (inputRef.current) inputRef.current.focus();
-                  }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-                  aria-label="Clear search"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-
           {/* 1. PRE-PERMISSION EXPLANATION PROMPT */}
           {showPrePermissionPrompt ? (
             <div className="gps-pre-permission-card p-3 mb-2.5 rounded-lg bg-[color-mix(in_oklch,var(--card)_80%,transparent)] border border-[var(--primary)] text-xs space-y-2.5 animate-in fade-in">

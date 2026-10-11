@@ -56,9 +56,12 @@ export const Route = createFileRoute('/')({
   component: WeatherDashboard,
 });
 
+import { parseTimeStringToMinutes } from '@/lib/weather-artwork';
+
 function getHourlyIcon(
-  h: ForecastHour
-): 'sunny' | 'partly' | 'cloudy' | 'rainy' | 'snowy' | 'windy' | 'thunderstorm' {
+  h: ForecastHour,
+  isNightHour: boolean = false
+): 'sunny' | 'moon' | 'partly' | 'partly-moon' | 'cloudy' | 'rainy' | 'snowy' | 'windy' | 'thunderstorm' {
   const code = h.weatherCode;
   const temp = h.temperature ?? h.apparent ?? 20;
   const cond = (h.condition || '').toLowerCase();
@@ -68,14 +71,14 @@ function getHourlyIcon(
     if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86) || temp <= 0) return 'snowy';
     if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rainy';
     if (code === 45 || code === 48) return 'cloudy'; // Fog / mist
-    if (code === 3) return 'cloudy';
+    if (code === 3) return isNightHour ? 'partly-moon' : 'cloudy';
     if (code === 2) {
       if (cond.includes('wind')) return 'windy';
-      return 'partly';
+      return isNightHour ? 'partly-moon' : 'partly';
     }
     if (code <= 1) {
       if (cond.includes('wind')) return 'windy';
-      return 'sunny';
+      return isNightHour ? 'moon' : 'sunny';
     }
   }
 
@@ -92,21 +95,23 @@ function getHourlyIcon(
     }
     if (cond.includes('rain') || cond.includes('drizzle') || cond.includes('shower')) return 'rainy';
     if (cond.includes('wind') || cond.includes('breez') || cond.includes('gale')) return 'windy';
-    if (cond.includes('clear') || cond.includes('sun')) return 'sunny';
-    if (cond.includes('partly')) return 'partly';
-    return 'cloudy';
+    if (cond.includes('clear') || cond.includes('sun') || cond.includes('night') || cond.includes('moon')) {
+      return isNightHour ? 'moon' : 'sunny';
+    }
+    if (cond.includes('partly')) return isNightHour ? 'partly-moon' : 'partly';
+    return isNightHour ? 'partly-moon' : 'cloudy';
   }
 
   if ((h.rain ?? 0) > 40) return 'rainy';
-  if ((h.rain ?? 0) > 15) return 'cloudy';
-  return 'partly';
+  if ((h.rain ?? 0) > 15) return isNightHour ? 'partly-moon' : 'cloudy';
+  return isNightHour ? 'partly-moon' : 'partly';
 }
 
 function applyCurrentConditions(
   res: { rawResponse?: any; hours?: ForecastHour[] },
   setter: React.Dispatch<React.SetStateAction<CurrentConditions>>
 ) {
-  const curr = res.rawResponse?.current_conditions;
+  const curr = res.rawResponse?.current_conditions || res.rawResponse?.current_weather;
   const firstHour = res.hours && res.hours.length > 0 ? res.hours[0] : null;
 
   const sanitizeCondition = (c?: string) => {
@@ -129,6 +134,14 @@ function applyCurrentConditions(
       windDirection: curr.wind_direction,
       pm25: curr.pm2_5 !== null && curr.pm2_5 !== undefined ? Math.round(curr.pm2_5) : (firstHour?.pm25 ?? 50),
       rainProbability: curr.precipitation > 0 ? 100 : (firstHour?.rain ?? 10),
+      sunrise: curr.sunrise ?? prev.sunrise ?? '06:22 AM',
+      sunset: curr.sunset ?? prev.sunset ?? '05:59 PM',
+      isNight: curr.is_night,
+      isDay: curr.is_day,
+      timezone: res.rawResponse?.metadata?.timezone,
+      timezoneAbbr: res.rawResponse?.metadata?.timezone_abbreviation,
+      utcOffsetSeconds: res.rawResponse?.metadata?.utc_offset_seconds,
+      localTime: curr.local_time,
     }));
   } else if (firstHour) {
     setter(prev => ({
@@ -197,6 +210,7 @@ function WeatherDashboard() {
 
   const [showAlternative, setShowAlternative] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const activeRequestIdRef = useRef(0);
 
   // Live backend data states with initial client fallbacks
@@ -247,6 +261,7 @@ function WeatherDashboard() {
       } finally {
         if (!isCancelled && activeRequestIdRef.current === reqId) {
           setIsLoading(false);
+          setIsInitialLoading(false);
         }
       }
     }
@@ -374,6 +389,38 @@ function WeatherDashboard() {
 
   const cpcbTelemetry = getIndiaCpcbCategory(currentConditions.pm25 ?? 50);
 
+  if (isInitialLoading) {
+    return (
+      <main className="dashboard-page cadence-page loading-screen-container">
+        <img
+          className="atmosphere"
+          src={atmosphere}
+          width={1536}
+          height={1024}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          style={{ pointerEvents: 'none', userSelect: 'none' }}
+        />
+        <div className="cadence-initial-loader">
+          <div className="loader-orbit-wrapper">
+            <div className="loader-pulse-ring" />
+            <div className="loader-orbit-ring" />
+            <img src="/favicon.jpeg" className="loader-emblem" alt="Cadence" />
+          </div>
+          <div className="loader-brand-title">CADENCE</div>
+          <div className="loader-poem">
+            Find your window. <span>same sky, different stories</span>
+          </div>
+          <div className="loader-status-badge">
+            <span className="loader-status-dot" />
+            <span>Reading atmospheric signals...</span>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="dashboard-page cadence-page">
       <img
@@ -386,17 +433,15 @@ function WeatherDashboard() {
         draggable={false}
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       />
-      <div className="dashboard">
+      <div className="dashboard cadence-fade-in">
         {/* Brand Bar */}
         <header className="brandbar">
           <div className="brand">
-            <span className="emerald" aria-hidden="true" />
-            <span>
-              CADENCE <b>+</b> OUTSIDE
-            </span>
+            <img src="/favicon.jpeg" className="brand-favicon" alt="Cadence logo" aria-hidden="true" />
+            <span>CADENCE</span>
           </div>
           <div className="brand-poem">
-            Find your window. <span>+</span> same sky, different stories
+            Find your window. <span>same sky, different stories</span>
           </div>
         </header>
 
@@ -417,6 +462,12 @@ function WeatherDashboard() {
             updatedTime: retrievedTime.replace('Forecast retrieved', 'Last updated ·'),
             sunrise: currentConditions.sunrise ?? '06:22 AM',
             sunset: currentConditions.sunset ?? '05:59 PM',
+            isNight: currentConditions.isNight,
+            isDay: currentConditions.isDay,
+            timezone: currentConditions.timezone,
+            timezoneAbbr: currentConditions.timezoneAbbr,
+            utcOffsetSeconds: currentConditions.utcOffsetSeconds,
+            localTime: currentConditions.localTime,
             moonrise: '02:17 AM',
             moonset: '03:48 PM',
             moonPhaseText: 'Waning Gibbous\n(72%)',
@@ -445,10 +496,14 @@ function WeatherDashboard() {
             visibilityStatus: 'Good',
             hourly: hours.slice(0, 11).map((h, i) => {
               const hourLabel = i === 0 ? 'Now' : `${(h.hour % 24 % 12 || 12)} ${h.hour % 24 >= 12 ? 'PM' : 'AM'}`;
+              const sunriseMin = parseTimeStringToMinutes(currentConditions.sunrise) ?? 360;
+              const sunsetMin = parseTimeStringToMinutes(currentConditions.sunset) ?? 1080;
+              const hMins = (h.hour % 24) * 60;
+              const isNightHour = hMins >= sunsetMin || hMins < sunriseMin;
               return {
                 label: hourLabel,
                 temp: h.apparent ? Math.round(h.apparent) : 28,
-                icon: getHourlyIcon(h),
+                icon: getHourlyIcon(h, isNightHour),
               };
             }),
           }}
@@ -460,6 +515,7 @@ function WeatherDashboard() {
             preferences={preferences}
             onChange={setPreferences}
             changed={changed}
+            timezoneAbbr={currentConditions.timezoneAbbr}
             onSubmit={() => {
               setApplied({ ...preferences });
               setShowAlternative(false);
@@ -474,6 +530,8 @@ function WeatherDashboard() {
           showAlternative={showAlternative}
           onAlternative={() => setShowAlternative(true)}
           condition={currentConditions.condition}
+          sunrise={currentConditions.sunrise}
+          sunset={currentConditions.sunset}
           onEdit={() => {
             planner.current?.scrollIntoView({
               behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -520,6 +578,8 @@ function WeatherDashboard() {
           preferences={applied}
           block={block}
           alternative={showAlternative && decision.state === 'no-slot'}
+          sunrise={currentConditions.sunrise}
+          sunset={currentConditions.sunset}
         />
 
         {/* 6. EXTENDED ASTRONOMY & FORECAST (DEMOTED BELOW ROUTER) */}
@@ -537,10 +597,14 @@ function WeatherDashboard() {
             data={{
               hourly: hours.slice(0, 11).map((h, i) => {
                 const hourLabel = i === 0 ? 'Now' : `${(h.hour % 24 % 12 || 12)} ${h.hour % 24 >= 12 ? 'PM' : 'AM'}`;
+                const sunriseMin = parseTimeStringToMinutes(currentConditions.sunrise) ?? 360;
+                const sunsetMin = parseTimeStringToMinutes(currentConditions.sunset) ?? 1080;
+                const hMins = (h.hour % 24) * 60;
+                const isNightHour = hMins >= sunsetMin || hMins < sunriseMin;
                 return {
                   label: hourLabel,
                   temp: h.apparent ? Math.round(h.apparent) : 28,
-                  icon: getHourlyIcon(h),
+                  icon: getHourlyIcon(h, isNightHour),
                 };
               }),
             }}

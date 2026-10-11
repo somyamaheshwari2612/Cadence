@@ -211,6 +211,8 @@ def _generate_modeled_fallback(latitude, longitude, retrieval_dt):
         "source": "Modeled baseline forecast (Upstream Open-Meteo temporarily rate-limited)",
         "upstream_overloaded": True
     }
+    hour_now = (retrieval_dt.hour + 5) % 24
+    fallback_is_day = 1 if (6 <= hour_now < 18) else 0
     fallback_current = {
         "temperature": 28.0,
         "apparent_temperature": 30.0,
@@ -221,6 +223,10 @@ def _generate_modeled_fallback(latitude, longitude, retrieval_dt):
         "wind_direction": "ESE",
         "precipitation": 0.0,
         "pm2_5": 50.0,
+        "sunrise": "06:00 AM",
+        "sunset": "06:30 PM",
+        "is_day": fallback_is_day == 1,
+        "is_night": fallback_is_day == 0,
     }
     return {"data": hours, "metadata": metadata, "current_conditions": fallback_current}
 
@@ -240,8 +246,9 @@ def fetch_environmental_data(latitude, longitude, cached_at_utc=None):
         weather_url = (
             f"https://api.open-meteo.com/v1/forecast?"
             f"latitude={latitude}&longitude={longitude}&"
-            f"current=temperature_2m,apparent_temperature,precipitation,weather_code,relative_humidity_2m,wind_speed_10m,wind_direction_10m&"
+            f"current=temperature_2m,apparent_temperature,precipitation,weather_code,relative_humidity_2m,wind_speed_10m,wind_direction_10m,is_day&"
             f"hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,relative_humidity_2m,wind_speed_10m,wind_direction_10m&"
+            f"daily=sunrise,sunset&"
             f"timezone=auto"
         )
         weather_data = _request_with_retry(weather_url)
@@ -279,6 +286,25 @@ def fetch_environmental_data(latitude, longitude, cached_at_utc=None):
     response_timezone = weather_data.get("timezone", "UTC")
     response_tz_abbr = weather_data.get("timezone_abbreviation", "UTC")
 
+    # Extract daily sunrise and sunset (local times from Open-Meteo)
+    w_daily = weather_data.get("daily", {})
+    daily_sunrise_list = w_daily.get("sunrise", [])
+    daily_sunset_list = w_daily.get("sunset", [])
+
+    def _iso_to_12h(iso_str: str) -> str:
+        try:
+            dt_obj = datetime.fromisoformat(iso_str)
+            h = dt_obj.hour
+            m = dt_obj.minute
+            ampm = "AM" if h < 12 else "PM"
+            h12 = h % 12 or 12
+            return f"{h12:02d}:{m:02d} {ampm}"
+        except Exception:
+            return "06:00 AM"
+
+    sunrise_12h = _iso_to_12h(daily_sunrise_list[0]) if daily_sunrise_list else "06:22 AM"
+    sunset_12h = _iso_to_12h(daily_sunset_list[0]) if daily_sunset_list else "05:59 PM"
+
     # 5. Extract Live Current Conditions
     w_curr = weather_data.get("current", {})
     a_curr = aqi_data.get("current", {})
@@ -291,6 +317,23 @@ def fetch_environmental_data(latitude, longitude, cached_at_utc=None):
     curr_rain = w_curr.get("precipitation", 0.0)
     curr_pm25 = a_curr.get("pm2_5", 25.0)
 
+    curr_is_day = w_curr.get("is_day")
+    if curr_is_day is None:
+        curr_time_str = w_curr.get("time")
+        if curr_time_str:
+            try:
+                curr_dt = datetime.fromisoformat(curr_time_str)
+                if daily_sunrise_list and daily_sunset_list:
+                    sr_dt = datetime.fromisoformat(daily_sunrise_list[0])
+                    ss_dt = datetime.fromisoformat(daily_sunset_list[0])
+                    curr_is_day = 1 if (sr_dt <= curr_dt < ss_dt) else 0
+                else:
+                    curr_is_day = 1 if (6 <= curr_dt.hour < 18) else 0
+            except Exception:
+                curr_is_day = 1
+        else:
+            curr_is_day = 1
+
     current_conditions = {
         "temperature": round(curr_temp, 1) if curr_temp is not None else 28.0,
         "apparent_temperature": round(curr_apparent, 1) if curr_apparent is not None else 31.0,
@@ -301,6 +344,11 @@ def fetch_environmental_data(latitude, longitude, cached_at_utc=None):
         "wind_direction": curr_wind_dir,
         "precipitation": curr_rain,
         "pm2_5": round(curr_pm25, 1) if curr_pm25 is not None else 25.0,
+        "sunrise": sunrise_12h,
+        "sunset": sunset_12h,
+        "is_day": curr_is_day == 1,
+        "is_night": curr_is_day == 0,
+        "local_time": w_curr.get("time"),
     }
 
     # 6. Build lookup dictionaries keyed by UTC ISO string

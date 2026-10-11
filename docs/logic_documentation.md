@@ -369,16 +369,18 @@ Cadence integrates visual and poetic atmospheric intelligence to create an emoti
 ### 8.1 Nocturnal Celestial Moon Engine (`frontend/src/lib/weather-artwork.ts`)
 To eliminate daytime solar imagery during nighttime hours, the visual engine tracks sunset and sunrise bounds:
 - **Night Window Definition:** An interval is evaluated as **Night** when local time is between sunset and sunrise ($t \ge \text{sunset} \lor t < \text{sunrise}$).
+- **Country-Specific Local Time:** Evaluated against the **selected location's own local time** using its IANA timezone (e.g. `Europe/London`, `America/New_York`, `Asia/Tokyo`, `Asia/Kolkata`) and UTC offset, ensuring international locations correctly display sun vs. moon irrespective of the user's browser clock.
 - **Dedicated Moon Artworks:**
   1. **Clear Sky Night (`moon-clear-night.jpg`):** Luminous crescent moon in a starry dark sky.
   2. **Cloudy Sky Night (`moon-cloudy-night.jpg`):** Atmospheric moon diffused behind nocturnal cloud layers.
   3. **No Moon Night (`moon-no-night.jpg`):** Starfield and cosmic dust for New Moon / dark sky conditions.
   4. **Full Moon Night (`moon-full-night.jpg`):** Radiant, detailed full moon encircled by a celestial halo.
 - **Dark Surface Blending:** Images are prepared on pure black backgrounds, enabling seamless `mix-blend-mode: screen` rendering across obsidian/emerald cards.
+- **12-Hour System Standard:** All clock times across the user interface are presented in 12-hour AM/PM format (e.g., `6:00 AM`, `9:00 PM`, `11:42 AM IST`) to eliminate military/24-hour clock ambiguity.
 
 ### 8.2 Living Weather Poetry Engine (`frontend/src/lib/weather-poetry.ts` & `poetry_lines.json`)
 The application pairs each forecast state with a curated two-line poem loaded from `frontend/src/data/poetry_lines.json`:
-- **API Condition Mapping:** Maps Open-Meteo WMO weather codes and descriptors (`Clear Sky`, `Partly Cloudy`, `Overcast`, `Rain`, `Rain Showers`, `Thunderstorm`, `Snow`, `Fog`, `Windy`, `Haze`, `Dust`, `Smoke`, etc.).
+- **API Condition Mapping:** Maps Open-Meteo WMO weather codes and descriptors (`Clear Sky`, `Partly Cloudy`, `Cloudy` (standardized from `Overcast`), `Rain`, `Rain Showers`, `Thunderstorm`, `Snow`, `Fog`, `Windy`, `Haze`, `Dust`, `Smoke`, etc.).
 - **Day/Night Cycle:**
   - **Day:** Sunrise to sunset (`curMin >= sunriseMin && curMin < sunsetMin`).
   - **Night:** Sunset to sunrise (`curMin >= sunsetMin || curMin < sunriseMin`).
@@ -388,6 +390,12 @@ The application pairs each forecast state with a curated two-line poem loaded fr
   - **Mild:** $11^\circ\text{C} \text{ to } 31^\circ\text{C}$
   - **Hot:** $\ge 32^\circ\text{C}$ / $\ge 35^\circ\text{C}$
 - **Couplet Splitting:** Quotes are formatted with newline delimiters (`\n`) and separated into `{ line1, line2 }` for dashboard typography.
+
+### 8.3 Atomic Location Synchronization & Race-Free Loading
+To prevent confusion where a newly selected city name might momentarily be displayed with stale weather telemetry from a previous location:
+- **Deferred Title Commitment:** When a user selects a new city or invokes device GPS, the dashboard preserves the existing city label and displays an asynchronous updating pill (`hero-updating-pill`).
+- **Atomic State Dispatch:** The new location string and coordinates are committed to dashboard state in the same render tick as the fetched hourly forecasts, current conditions, and schedule decisions.
+- **Request Cancellation & Active Request Tracking:** Rapid consecutive location selections use monotonic request IDs (`activeRequestIdRef`) to ignore out-of-order asynchronous completions.
 
 ---
 
