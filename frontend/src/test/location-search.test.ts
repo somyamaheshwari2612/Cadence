@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { searchLocations } from '@/lib/api';
+import { searchLocations, clearGeocodeCache } from '@/lib/api';
 
 describe('searchLocations API client', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    clearGeocodeCache();
   });
 
   it('returns empty array when query is blank or whitespace', async () => {
@@ -23,8 +24,9 @@ describe('searchLocations API client', () => {
       },
     ];
 
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
+      headers: new Headers({ 'content-type': 'application/json' }),
       json: async () => ({ candidates: mockCandidates }),
     } as Response);
 
@@ -41,6 +43,7 @@ describe('searchLocations API client', () => {
   it('handles empty results cleanly without throwing error', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
+      headers: new Headers({ 'content-type': 'application/json' }),
       json: async () => ({ candidates: [] }),
     } as Response);
 

@@ -622,7 +622,7 @@ function WeatherDashboard() {
             humidity: currentConditions.humidity ?? 68,
             humidityStatus: 'Comfortable',
             windSpeed: currentConditions.windSpeed ?? 12,
-            windDirection: currentConditions.windDirection || 'ESE',
+            windDirection: String(currentConditions.windDirection || 'ESE'),
             pressure: currentConditions.pressure ?? 1012,
             pressureStatus: currentConditions.pressureStatus ?? 'Steady',
             visibility: 8,
